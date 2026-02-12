@@ -1,0 +1,5 @@
+usuario_red,nombres,tipo_contrato,sede,dependencia,subdependencia,estado,fecha_inicio,fecha_fin,nivel_red,red_inicio,red_fin,tiene_vpn,vpn_inicio,vpn_fin
+jrojas,Juan Rojas,CAS,Sede Central,Direccion de Servicios Estrategicos Agrarios,,ACTIVO,2025-01-01,2025-12-31,NORMAL,,,NO,,
+mperez,María Perez,Tercero,EEA Arequipa,,,ACTIVO,2025-02-01,2025-06-30,NORMAL,,,NO,,
+mgonzales,Manuel Gonzales Maccha,Tercero,EEA Virú,,,INACTIVO,2026-02-03,2026-12-31,NORMAL,2026-02-03,2026-12-31,SI,2026-02-03,2026-03-07
+jsotomayor,Juan Carlos Sotomayor Tuero,Tercero,Sede Central,Gerencia General,Unidad de Tecnologia de la Informacion,ACTIVO,2026-02-04,2028-12-04,LIBRE,2026-02-04,2030-12-14,SI,2026-02-04,2026-02-13

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Registrar Usuario de Red | AccessUTI{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h2 class="h2">Registrar Usuario de Red</h2>
+    <p class="muted">Completa los datos del colaborador y sus accesos (Red / VPN).</p>
+  </div>
+</div>
+
+{% if error %}
+  <div class="banner danger">{{ error }}</div>
+{% endif %}
+
+<form method="post" class="card form-card">
+
+  <h3 class="h3">Datos del usuario</h3>
+  <div class="kv">
+    <div class="item">
+      <b>Usuario de red *</b>
+      <input name="usuario_red" required placeholder="ej: gvivanco">
+      <small class="muted">Sin espacios. Recomendado en minúsculas.</small>
+    </div>
+
+    <div class="item">
+      <b>Nombres *</b>
+      <input name="nombres" required placeholder="Nombres y apellidos completos">
+    </div>
+
+    <div class="item">
+      <b>Tipo de contrato</b>
+      <select name="tipo_contrato">
+        <option value="">—</option>
+        {% for c in contratos %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Estado</b>
+      <select name="estado">
+        <option value="ACTIVO" selected>ACTIVO</option>
+        <option value="INACTIVO">INACTIVO</option>
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Sede</b>
+      <select id="sede" name="sede">
+        <option value="">—</option>
+        {% for s in sedes %}
+          <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Dependencia</b>
+      <select id="dependencia" name="dependencia">
+        <option value="">—</option>
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Subdependencia</b>
+      <select id="subdependencia" name="subdependencia">
+        <option value="">—</option>
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Inicio (usuario)</b>
+      <input type="date" name="fecha_inicio">
+    </div>
+
+    <div class="item">
+      <b>Fin (usuario)</b>
+      <input type="date" name="fecha_fin">
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <h3 class="h3">Accesos de red</h3>
+  <div class="kv">
+    <div class="item">
+      <b>Nivel de red</b>
+      <select name="nivel_red" id="nivel_red">
+        {% for n in niveles_red %}
+          <option value="{{ n }}" {% if n == 'NORMAL' %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+      <small class="muted">Si NO es NORMAL, llena fechas de inicio/fin.</small>
+    </div>
+
+    <div class="item">
+      <b>Inicio acceso red</b>
+      <input type="date" name="red_inicio" id="red_inicio">
+    </div>
+
+    <div class="item">
+      <b>Fin acceso red</b>
+      <input type="date" name="red_fin" id="red_fin">
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <h3 class="h3">VPN</h3>
+  <div class="kv">
+    <div class="item">
+      <b>¿Tiene VPN?</b>
+      <select name="tiene_vpn" id="tiene_vpn">
+        <option value="NO" selected>NO</option>
+        <option value="SI">SI</option>
+      </select>
+      <small class="muted">Si SI, llena fechas inicio/fin.</small>
+    </div>
+
+    <div class="item">
+      <b>Inicio VPN</b>
+      <input type="date" name="vpn_inicio" id="vpn_inicio">
+    </div>
+
+    <div class="item">
+      <b>Fin VPN</b>
+      <input type="date" name="vpn_fin" id="vpn_fin">
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn" type="submit">Guardar</button>
+    <a class="btn ghost" href="{{ url_for('consulta_usuario_red') }}">Cancelar</a>
+  </div>
+
+</form>
+
+<script>
+  const MAP_SEDE_DIR = {{ map_sede_dir_json | safe }};
+  const MAP_DIR_SUB  = {{ map_dir_sub_json  | safe }};
+
+  const sedeSel = document.getElementById("sede");
+  const depSel  = document.getElementById("dependencia");
+  const subSel  = document.getElementById("subdependencia");
+
+  // Accesos
+  const nivelSel = document.getElementById("nivel_red");
+  const redIni   = document.getElementById("red_inicio");
+  const redFin   = document.getElementById("red_fin");
+
+  const vpnSel   = document.getElementById("tiene_vpn");
+  const vpnIni   = document.getElementById("vpn_inicio");
+  const vpnFin   = document.getElementById("vpn_fin");
+
+  function setOptions(selectEl, items, placeholder) {
+    selectEl.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = placeholder;
+    selectEl.appendChild(opt0);
+
+    (items || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  function onSedeChange() {
+    const sede = sedeSel.value;
+    const deps = MAP_SEDE_DIR[sede] || [];
+    setOptions(depSel, deps, "—");
+    setOptions(subSel, [], "—");
+  }
+
+  function onDepChange() {
+    const dep = depSel.value;
+    const subs = MAP_DIR_SUB[dep] || [];
+    setOptions(subSel, subs, "—");
+  }
+
+  // UX: habilitar/deshabilitar fechas según selección
+  function toggleRedFechas() {
+    const nivel = (nivelSel.value || "NORMAL").toUpperCase();
+    const enable = (nivel !== "NORMAL");
+    redIni.disabled = !enable;
+    redFin.disabled = !enable;
+    if (!enable) { redIni.value = ""; redFin.value = ""; }
+  }
+
+  function toggleVpnFechas() {
+    const v = (vpnSel.value || "NO").toUpperCase();
+    const enable = (v === "SI");
+    vpnIni.disabled = !enable;
+    vpnFin.disabled = !enable;
+    if (!enable) { vpnIni.value = ""; vpnFin.value = ""; }
+  }
+
+  sedeSel.addEventListener("change", onSedeChange);
+  depSel.addEventListener("change", onDepChange);
+
+  nivelSel.addEventListener("change", toggleRedFechas);
+  vpnSel.addEventListener("change", toggleVpnFechas);
+
+  // init
+  onSedeChange();
+  toggleRedFechas();
+  toggleVpnFechas();
+</script>
+
+{% endblock %}

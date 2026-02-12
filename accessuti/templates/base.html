@@ -1,0 +1,71 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}AccessUTI{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar__inner">
+    <div class="brand">
+      <div class="brand__logo">UTI</div>
+      <div class="brand__text">
+        <h1 class="brand__title">Access UTI</h1>
+        <p class="brand__subtitle">Registro y consulta de usuarios de red (INIA)</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      {% if session.get('user') %}
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('consulta_usuario_red') }}">Consulta</a>
+
+        {% if is_admin %}
+          <a href="{{ url_for('nuevo_usuario_red') }}">Registrar usuario</a>
+        {% endif %}
+
+        <span class="chip">
+          👤 {{ session.get('user') }}
+          {% if is_admin %}<b class="chip__badge">ADMIN</b>{% endif %}
+        </span>
+
+        <a class="btn ghost" href="{{ url_for('logout') }}">Salir</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Login</a>
+        
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, msg in messages %}
+          <div class="banner {% if category %}{{ category }}{% else %}info{% endif %}">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="container footer__inner">
+    <span>Unidad de Tecnologías de la Información — INIA</span>
+    <span class="muted">Access UTI · Flask + BST + CSV</span>
+  </div>
+</footer>
+
+</body>
+</html>

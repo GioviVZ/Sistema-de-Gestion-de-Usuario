@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | AccessUTI{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h2 class="h2">Dashboard</h2>
+    <p class="muted">Resumen general de usuarios de red y accesos especiales</p>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="grid-4">
+  <div class="card kpi">
+    <div class="kpi-title">Total usuarios</div>
+    <div class="kpi-value">{{ total }}</div>
+    <div class="kpi-sub">Usuarios registrados</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi-title">Usuarios activos</div>
+    <div class="kpi-value">{{ activos }}</div>
+    <div class="kpi-sub">Estado ACTIVO</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi-title">Accesos especiales</div>
+    <div class="kpi-value">{{ especiales }}</div>
+    <div class="kpi-sub">Nivel ≠ NORMAL</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi-title">Usuarios con VPN</div>
+    <div class="kpi-value">{{ vpn }}</div>
+    <div class="kpi-sub">VPN habilitada</div>
+  </div>
+</div>
+
+<!-- ALERTAS + AUDITORIA -->
+<div class="grid-2 mt">
+
+  <!-- ALERTAS -->
+  <div class="card">
+    <div class="card-head">
+      <h3 class="h3">⚠️ Alertas de vencimiento</h3>
+      <span class="chip {% if alertas > 0 %}danger{% else %}ok{% endif %}">
+        {{ alertas }}
+      </span>
+    </div>
+
+    {% if alert_items and alert_items|length > 0 %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Tipo</th>
+            <th>Fecha fin</th>
+            <th>Días</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in alert_items %}
+          <tr>
+            <td>
+              <a href="{{ url_for('consulta_usuario_red', ver=a.usuario_red) }}">
+                {{ a.usuario_red }}
+              </a>
+              <br>
+              <small class="muted">{{ a.nombres }}</small>
+            </td>
+            <td>{{ a.tipo }}</td>
+            <td>{{ a.fin }}</td>
+            <td>
+              <span class="pill {% if a.dias <= 0 %}danger{% elif a.dias <= 3 %}warn{% else %}ok{% endif %}">
+                {{ a.dias }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No hay accesos próximos a vencer.</p>
+    {% endif %}
+  </div>
+
+  <!-- AUDITORIA -->
+  <div class="card">
+    <div class="card-head">
+      <h3 class="h3">🧾 Auditoría reciente</h3>
+      <span class="chip ghost">Pila (LIFO)</span>
+    </div>
+
+    {% if audit_items and audit_items|length > 0 %}
+      <div class="audit-list">
+        {% for it in audit_items %}
+          <div class="audit-item">
+            <div class="audit-top">
+              <b>{{ it.accion }}</b>
+              <span class="muted">{{ it.fecha }}</span>
+            </div>
+            <div class="muted">Usuario: <b>{{ it.usuario }}</b></div>
+            {% if it.detalle %}
+              <div class="muted">Detalle: {{ it.detalle }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">Aún no hay registros.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

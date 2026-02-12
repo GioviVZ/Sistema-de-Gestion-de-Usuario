@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Login | AccessUTI{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+
+  <div class="auth-card">
+    <h2 class="auth-title">Iniciar sesión</h2>
+    <p class="auth-subtitle">Sistema Access UTI – INIA</p>
+
+    {% if error %}
+      <div class="banner danger">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="auth-form">
+      <div class="field">
+        <label>Usuario</label>
+        <input
+          type="text"
+          name="username"
+          placeholder="usuario"
+          required
+          autofocus
+        />
+      </div>
+
+      <div class="field">
+        <label>Contraseña</label>
+        <input
+          type="password"
+          name="password"
+          placeholder="••••••••"
+          required
+        />
+      </div>
+
+      <button type="submit" class="btn full">Ingresar</button>
+    </form>
+
+    <div class="auth-hint">
+      <small class="muted">
+      </small>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

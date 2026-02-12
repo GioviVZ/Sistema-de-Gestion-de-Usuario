@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}Consulta Usuarios | AccessUTI{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h2 class="h2">Consulta de Usuarios de Red</h2>
+    <p class="muted">Busca y filtra usuarios. Haz clic en un usuario para ver su detalle.</p>
+  </div>
+
+  <div class="actions">
+    {% if is_admin %}
+      <a class="btn" href="{{ url_for('nuevo_usuario_red') }}">+ Registrar usuario</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- FILTROS -->
+<form method="get" class="card form-card">
+  <div class="kv">
+
+    <div class="item">
+      <b>Buscar</b>
+      <input name="q" value="{{ q }}" placeholder="usuario, nombres, dependencia...">
+      <small class="muted">Ej: “gvivanco”, “DSEA”, “Sistemas”.</small>
+    </div>
+
+    <div class="item">
+      <b>Sede</b>
+      <select id="sede" name="sede">
+        <option value="">—</option>
+        {% for s in sedes %}
+          <option value="{{ s }}" {% if filtros.sede == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Dependencia</b>
+      <select id="dependencia" name="dependencia">
+        <option value="">—</option>
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Subdependencia</b>
+      <select id="subdependencia" name="subdependencia">
+        <option value="">—</option>
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Estado</b>
+      <select name="estado">
+        <option value="">—</option>
+        <option value="ACTIVO" {% if filtros.estado == 'ACTIVO' %}selected{% endif %}>ACTIVO</option>
+        <option value="INACTIVO" {% if filtros.estado == 'INACTIVO' %}selected{% endif %}>INACTIVO</option>
+      </select>
+    </div>
+
+    <div class="item">
+      <b>Nivel de red</b>
+      <select name="nivel_red">
+        <option value="">—</option>
+        {% for n in niveles_red %}
+          <option value="{{ n }}" {% if filtros.nivel_red == n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="item">
+      <b>VPN</b>
+      <select name="tiene_vpn">
+        <option value="">—</option>
+        <option value="SI" {% if filtros.tiene_vpn == 'SI' %}selected{% endif %}>SI</option>
+        <option value="NO" {% if filtros.tiene_vpn == 'NO' %}selected{% endif %}>NO</option>
+      </select>
+    </div>
+
+  </div>
+
+  <div class="actions-row">
+    <button class="btn" type="submit">Aplicar filtros</button>
+    <a class="btn ghost" href="{{ url_for('consulta_usuario_red') }}">Limpiar</a>
+  </div>
+</form>
+
+<!-- RESULTADOS + DETALLE -->
+<div class="grid-2 mt">
+
+  <!-- RESULTADOS -->
+  <div class="card">
+    <div class="card-head">
+      <h3 class="h3">Resultados</h3>
+      <span class="chip ghost">{{ resultados|length }}</span>
+    </div>
+
+    {% if resultados and resultados|length > 0 %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombres</th>
+              <th>Dependencia</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in resultados %}
+            <tr>
+              <td>
+                <a
+                  href="{{ url_for('consulta_usuario_red',
+                    q=q,
+                    sede=filtros.sede,
+                    dependencia=filtros.dependencia,
+                    subdependencia=filtros.subdependencia,
+                    estado=filtros.estado,
+                    nivel_red=filtros.nivel_red,
+                    tiene_vpn=filtros.tiene_vpn,
+                    ver=r.usuario_red
+                  ) }}"
+                >
+                  {{ r.usuario_red }}
+                </a>
+
+                {% if (r.nivel_red or 'NORMAL') != 'NORMAL' %}
+                  <span class="pill warn">ESPECIAL</span>
+                {% endif %}
+
+                {% if (r.tiene_vpn or 'NO') == 'SI' %}
+                  <span class="pill ok">VPN</span>
+                {% endif %}
+              </td>
+              <td>{{ r.nombres }}</td>
+              <td>{{ r.dependencia }}</td>
+              <td>
+                <span class="pill {% if r.estado == 'ACTIVO' %}ok{% else %}danger{% endif %}">
+                  {{ r.estado }}
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">No hay resultados con los filtros actuales.</p>
+    {% endif %}
+  </div>
+
+  <!-- DETALLE -->
+  <div class="card">
+    <div class="card-head">
+      <h3 class="h3">Detalle</h3>
+      {% if usuario %}
+        <span class="chip">{{ usuario.usuario_red }}</span>
+      {% else %}
+        <span class="chip ghost">Selecciona un usuario</span>
+      {% endif %}
+    </div>
+
+    {% if usuario %}
+      <div class="detail">
+        <div><b>Nombres:</b> {{ usuario.nombres }}</div>
+        <div><b>Usuario red:</b> {{ usuario.usuario_red }}</div>
+        <div><b>Tipo contrato:</b> {{ usuario.tipo_contrato or '—' }}</div>
+
+        <hr class="sep">
+
+        <div><b>Sede:</b> {{ usuario.sede or '—' }}</div>
+        <div><b>Dependencia:</b> {{ usuario.dependencia or '—' }}</div>
+        <div><b>Subdependencia:</b> {{ usuario.subdependencia or '—' }}</div>
+
+        <hr class="sep">
+
+        <div class="detail-grid">
+          <div>
+            <b>Estado</b><br>
+            <span class="pill {% if usuario.estado == 'ACTIVO' %}ok{% else %}danger{% endif %}">
+              {{ usuario.estado }}
+            </span>
+          </div>
+
+          <div>
+            <b>Nivel de red</b><br>
+            <span class="pill {% if (usuario.nivel_red or 'NORMAL') == 'NORMAL' %}ghost{% else %}warn{% endif %}">
+              {{ usuario.nivel_red or 'NORMAL' }}
+            </span>
+          </div>
+
+          <div>
+            <b>Usuario: Inicio</b><br>
+            <span class="muted">{{ usuario.fecha_inicio or '—' }}</span>
+          </div>
+
+          <div>
+            <b>Usuario: Fin</b><br>
+            <span class="muted">{{ usuario.fecha_fin or '—' }}</span>
+          </div>
+
+          <div>
+            <b>Red: Inicio</b><br>
+            <span class="muted">{{ usuario.red_inicio or '—' }}</span>
+          </div>
+
+          <div>
+            <b>Red: Fin</b><br>
+            <span class="muted">{{ usuario.red_fin or '—' }}</span>
+          </div>
+
+          <div>
+            <b>VPN</b><br>
+            <span class="pill {% if (usuario.tiene_vpn or 'NO') == 'SI' %}ok{% else %}ghost{% endif %}">
+              {{ usuario.tiene_vpn or 'NO' }}
+            </span>
+          </div>
+
+          <div>
+            <b>VPN: Fin</b><br>
+            <span class="muted">{{ usuario.vpn_fin or '—' }}</span>
+          </div>
+        </div>
+
+        {% if is_admin %}
+          <div class="actions-row" style="margin-top: 14px;">
+            <a class="btn"
+               href="{{ url_for('editar_usuario_red_ui', usuario_red=usuario.usuario_red, next=request.full_path) }}">
+              Editar
+            </a>
+
+            <a class="btn danger"
+               href="{{ url_for('toggle_estado_usuario_red', usuario_red=usuario.usuario_red, next=request.full_path) }}">
+              Activar / Desactivar
+            </a>
+          </div>
+        {% endif %}
+
+      </div>
+    {% else %}
+      <p class="muted">Selecciona un usuario en la tabla para ver su información completa.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  const MAP_SEDE_DIR = {{ map_sede_dir_json | safe }};
+  const MAP_DIR_SUB  = {{ map_dir_sub_json  | safe }};
+
+  const sedeSel = document.getElementById("sede");
+  const depSel  = document.getElementById("dependencia");
+  const subSel  = document.getElementById("subdependencia");
+
+  const selectedDep = "{{ filtros.dependencia or '' }}";
+  const selectedSub = "{{ filtros.subdependencia or '' }}";
+
+  function setOptions(selectEl, items, placeholder) {
+    selectEl.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = placeholder;
+    selectEl.appendChild(opt0);
+
+    (items || []).forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  function onSedeChange(init=false) {
+    const sede = sedeSel.value;
+    const deps = MAP_SEDE_DIR[sede] || [];
+    setOptions(depSel, deps, "—");
+    setOptions(subSel, [], "—");
+
+    if (init && selectedDep && deps.includes(selectedDep)) {
+      depSel.value = selectedDep;
+      onDepChange(true);
+    }
+  }
+
+  function onDepChange(init=false) {
+    const dep = depSel.value;
+    const subs = MAP_DIR_SUB[dep] || [];
+    setOptions(subSel, subs, "—");
+
+    if (init && selectedSub && subs.includes(selectedSub)) {
+      subSel.value = selectedSub;
+    }
+  }
+
+  sedeSel.addEventListener("change", () => onSedeChange(false));
+  depSel.addEventListener("change", () => onDepChange(false));
+
+  onSedeChange(true);
+</script>
+
+{% endblock %}
