@@ -15,3 +15,11 @@ fecha,usuario,accion,detalle
 2026-02-05 22:00,adminuti,UPDATE_USUARIO_RED,mperez
 2026-02-06 22:14,adminuti,UPDATE_USUARIO_RED,mperez
 2026-02-11 22:35,adminuti,LOGIN_OK,
+2026-02-11 23:44,adminuti,LOGIN_OK,
+2026-02-12 18:47,adminuti,LOGOUT,
+2026-02-12 18:48,adminuti,LOGIN_OK,
+2026-02-12 18:56,adminuti,TOGGLE_ESTADO_USUARIO_RED,jsotomayor->INACTIVO
+2026-02-12 18:56,adminuti,TOGGLE_ESTADO_USUARIO_RED,jsotomayor->ACTIVO
+2026-02-12 18:57,adminuti,UPDATE_USUARIO_RED,jsotomayor
+2026-02-12 18:57,adminuti,UPDATE_USUARIO_RED,jsotomayor
+2026-02-12 18:59,adminuti,UPDATE_USUARIO_RED,jsotomayor

@@ -10,8 +10,59 @@
   </div>
 </div>
 
+<!-- SELECTOR INTERACTIVO -->
+<div class="card" style="padding:14px; margin-top:12px;">
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+    <div style="flex:1; min-width:240px;">
+      <b>Conteo / Resumen por</b>
+      <select id="dimSelect">
+        <option value="SEDE">Sede</option>
+        <option value="DEPENDENCIA">Dependencia</option>
+        <option value="SUBDEPENDENCIA">Subdependencia</option>
+        <option value="NIVEL_RED">Permisos / Nivel de red</option>
+        <option value="VPN">VPN</option>
+        <option value="ESTADO">Estado</option>
+        <option value="CONTRATO">Tipo de contrato</option>
+      </select>
+    </div>
+
+    <div>
+      <b>Top</b>
+      <select id="topN">
+        <option value="8">8</option>
+        <option value="12" selected>12</option>
+        <option value="20">20</option>
+      </select>
+    </div>
+
+    <div>
+      <button class="btn" type="button" id="btnRender">Mostrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- GRAFICO DE BARRAS -->
+<div class="card" style="padding:14px; margin-top:12px;">
+  <div class="card-head">
+    <h3 class="h3" id="chartTitle">Conteo por Sede</h3>
+    <span class="chip ghost" id="chartTotal">—</span>
+  </div>
+
+  <div class="bars" id="barsWrap"></div>
+  <p class="muted" id="emptyMsg" style="display:none;">Sin datos para mostrar.</p>
+</div>
+
+<style>
+  .bars{display:flex; flex-direction:column; gap:10px;}
+  .barRow{display:grid; grid-template-columns: 1fr 2fr 70px; gap:10px; align-items:center;}
+  .barLabel{font-size:13px; color: rgba(234,240,255,.92); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .barTrack{height:12px; border-radius:999px; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); overflow:hidden;}
+  .barFill{height:100%; background: rgba(78,161,255,.45);}
+  .barVal{text-align:right; font-weight:800;}
+</style>
+
 <!-- KPIs -->
-<div class="grid-4">
+<div class="grid-4 mt">
   <div class="card kpi">
     <div class="kpi-title">Total usuarios</div>
     <div class="kpi-value">{{ total }}</div>
@@ -113,5 +164,94 @@
   </div>
 
 </div>
+
+<script>
+  // series_json viene desde app.py: series_json=json.dumps(series,...)
+  const SERIES = {{ series_json | safe }};
+
+  const dimSelect = document.getElementById("dimSelect");
+  const topN = document.getElementById("topN");
+  const btnRender = document.getElementById("btnRender");
+
+  const barsWrap = document.getElementById("barsWrap");
+  const chartTitle = document.getElementById("chartTitle");
+  const chartTotal = document.getElementById("chartTotal");
+  const emptyMsg = document.getElementById("emptyMsg");
+
+  const DIM_LABEL = {
+    "SEDE": "Sede",
+    "DEPENDENCIA": "Dependencia",
+    "SUBDEPENDENCIA": "Subdependencia",
+    "NIVEL_RED": "Permisos / Nivel de red",
+    "VPN": "VPN",
+    "ESTADO": "Estado",
+    "CONTRATO": "Tipo de contrato",
+  };
+
+  function renderBars(dimKey, top) {
+    const data = (SERIES[dimKey] || []).slice(0, top);
+
+    chartTitle.textContent = `Conteo por ${DIM_LABEL[dimKey] || dimKey}`;
+    const total = (SERIES[dimKey] || []).reduce((acc, it) => acc + (it.count || 0), 0);
+    chartTotal.textContent = `${total}`;
+
+    barsWrap.innerHTML = "";
+
+    if (!data.length) {
+      emptyMsg.style.display = "block";
+      return;
+    }
+    emptyMsg.style.display = "none";
+
+    const max = Math.max(...data.map(x => x.count || 0), 1);
+
+    data.forEach(it => {
+      const row = document.createElement("div");
+      row.className = "barRow";
+
+      const label = document.createElement("div");
+      label.className = "barLabel";
+      label.title = it.label;
+      label.textContent = it.label;
+
+      const track = document.createElement("div");
+      track.className = "barTrack";
+
+      const fill = document.createElement("div");
+      fill.className = "barFill";
+      fill.style.width = `${Math.round((it.count * 100) / max)}%`;
+
+      track.appendChild(fill);
+
+      const val = document.createElement("div");
+      val.className = "barVal";
+      val.textContent = it.count;
+
+      row.appendChild(label);
+      row.appendChild(track);
+      row.appendChild(val);
+
+      barsWrap.appendChild(row);
+    });
+  }
+
+  function renderNow() {
+    const dim = dimSelect.value || "SEDE";
+    const top = parseInt(topN.value || "12", 10);
+    renderBars(dim, top);
+  }
+
+  btnRender.addEventListener("click", renderNow);
+
+ 
+  window.addEventListener("DOMContentLoaded", () => {
+    
+    dimSelect.value = "SEDE";
+    topN.value = "12";
+    renderNow();
+  });
+
+
+</script>
 
 {% endblock %}

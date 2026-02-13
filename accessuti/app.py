@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 import csv
 import os
@@ -10,21 +11,25 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from estructuras.bst import ArbolUsuarios
 from estructuras.pila import Pila
 
+
 # ================= APP =================
 app = Flask(__name__)
 app.secret_key = "accessuti-final"
 
 BASE_DIR = app.root_path
 DATA_DIR = os.path.join(BASE_DIR, "data")
+
 USUARIOS_SISTEMA = os.path.join(DATA_DIR, "usuarios_sistema.csv")
 USUARIOS_RED = os.path.join(DATA_DIR, "usuarios_red.csv")
 AUDITORIA_CSV = os.path.join(DATA_DIR, "auditoria.csv")
 ORG_XLSX = os.path.join(DATA_DIR, "Organizacion INIA.xlsx")
 
+
 # ================= ESTRUCTURAS =================
 arbol_sistema = ArbolUsuarios()
 arbol_red = ArbolUsuarios()
 auditoria = Pila()
+
 
 # ================= CATÁLOGOS =================
 CAT_SEDES = []
@@ -41,6 +46,12 @@ def limpiar_txt(x):
 
 
 def cargar_organizacion():
+    """
+    Lee Organizacion INIA.xlsx y arma:
+      - CAT_SEDES
+      - MAP_SEDE_DIR: sede -> [dependencias]
+      - MAP_DIR_SUB: dependencia -> [subdependencias]
+    """
     global CAT_SEDES, MAP_SEDE_DIR, MAP_DIR_SUB
 
     CAT_SEDES = []
@@ -76,6 +87,7 @@ def cargar_organizacion():
         if not sede:
             sede = "OFICINA CENTRAL"
 
+        # Siempre incluir sede (incluye EEA aunque dirección sea "-")
         CAT_SEDES.append(sede)
         MAP_SEDE_DIR.setdefault(sede, set())
 
@@ -139,8 +151,8 @@ def registrar(user, accion, detalle=""):
 
 
 def auditoria_reciente(limit=12):
-    # de la pila (últimos en orden LIFO)
-    items = auditoria.to_list()  # top -> bottom
+    # Pila: top -> bottom
+    items = auditoria.to_list()
     return items[:limit]
 
 
@@ -251,12 +263,16 @@ def append_usuario_sistema_csv(row):
 
 # ================= CARGAS =================
 def cargar_sistema():
+    """
+    - Crea usuarios_sistema.csv si no existe
+    - Soporta CSV viejo con columna 'password' (migra a password_hash)
+    """
     global arbol_sistema
     arbol_sistema = ArbolUsuarios()
 
+    os.makedirs(DATA_DIR, exist_ok=True)
+
     if not os.path.exists(USUARIOS_SISTEMA):
-        os.makedirs(DATA_DIR, exist_ok=True)
-        # crea en formato NUEVO
         asegurar_csv_con_header(USUARIOS_SISTEMA, headers_usuario_sistema())
         append_usuario_sistema_csv({
             "username": "admin",
@@ -267,14 +283,13 @@ def cargar_sistema():
         })
         print("✔ usuarios_sistema.csv creado con ADMIN admin/admin123")
 
-    # leer CSV y detectar esquema (antiguo vs nuevo)
     with open(USUARIOS_SISTEMA, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = [c.strip() for c in (reader.fieldnames or [])]
 
         es_esquema_viejo = ("password" in fieldnames) and ("password_hash" not in fieldnames)
 
-        filas = []
+        filas_norm = []
         for r in reader:
             u = (r.get("username") or "").strip()
             if not u:
@@ -283,7 +298,6 @@ def cargar_sistema():
             rol = (r.get("rol") or "USER").strip().upper()
             estado = (r.get("estado") or "ACTIVO").strip().upper()
 
-            # compat: si es viejo usa password; si es nuevo usa password_hash
             if es_esquema_viejo:
                 pw_plain = (r.get("password") or "").strip()
                 pw_hash = generate_password_hash(pw_plain) if pw_plain else ""
@@ -294,28 +308,21 @@ def cargar_sistema():
 
             registro = {
                 "username": u,
+                "password_hash": pw_hash,
                 "rol": rol,
                 "estado": estado,
-                "password_hash": pw_hash,
                 "creado_en": creado,
             }
 
-            # guardar extra si existe (no rompe nada)
-            if "nombres" in fieldnames:
-                registro["nombres"] = (r.get("nombres") or "").strip()
-
-            filas.append(registro)
+            filas_norm.append(registro)
             arbol_sistema.insertar(u, registro)
 
-    # (Opcional pero recomendado) si el CSV era viejo, migrarlo a nuevo formato automáticamente
-    # así ya no te vuelve a dar problemas
-    if 'es_esquema_viejo' in locals() and es_esquema_viejo:
-        nuevo_path = USUARIOS_SISTEMA  # sobrescribe el mismo
-        asegurar_csv_con_header(nuevo_path, headers_usuario_sistema())
-        with open(nuevo_path, "w", newline="", encoding="utf-8") as wf:
+    if es_esquema_viejo:
+        asegurar_csv_con_header(USUARIOS_SISTEMA, headers_usuario_sistema())
+        with open(USUARIOS_SISTEMA, "w", newline="", encoding="utf-8") as wf:
             w = csv.DictWriter(wf, fieldnames=headers_usuario_sistema())
             w.writeheader()
-            for reg in filas:
+            for reg in filas_norm:
                 w.writerow({
                     "username": reg["username"],
                     "password_hash": reg["password_hash"],
@@ -360,10 +367,48 @@ def cargar_red():
             arbol_red.insertar(u, r)
 
 
+# ================= DASHBOARD: SERIES (INTERACTIVO) =================
+def agg_counts(lista, field):
+    """
+    Retorna lista [{label,count,pct}] ordenado desc para un campo (field)
+    """
+    total = len(lista)
+    counts = {}
+    for x in lista:
+        v = (x.get(field) or "—").strip()
+        if v == "":
+            v = "—"
+        counts[v] = counts.get(v, 0) + 1
+
+    out = []
+    for label, count in counts.items():
+        pct = int(round((count * 100) / total)) if total else 0
+        out.append({"label": label, "count": count, "pct": pct})
+
+    out.sort(key=lambda a: a["count"], reverse=True)
+    return out
+
+
+def build_dashboard_series(usuarios):
+    """
+    Arma todas las series que el dashboard puede mostrar
+    """
+    return {
+        "SEDE": agg_counts(usuarios, "sede"),
+        "DEPENDENCIA": agg_counts(usuarios, "dependencia"),
+        "SUBDEPENDENCIA": agg_counts(usuarios, "subdependencia"),
+        "ESTADO": agg_counts(usuarios, "estado"),
+        "VPN": agg_counts(usuarios, "tiene_vpn"),
+        "NIVEL_RED": agg_counts(usuarios, "nivel_red"),
+        "CONTRATO": agg_counts(usuarios, "tipo_contrato"),
+    }
+
+
 # ================= INIT =================
 cargar_organizacion()
 cargar_sistema()
 cargar_red()
+
 
 # ================= ROUTES =================
 @app.get("/")
@@ -400,7 +445,7 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    # registro libre (puedes cambiarlo a solo-admin si quieres)
+    # registro libre (si quieres, lo hacemos solo ADMIN)
     if request.method == "POST":
         u = (request.form.get("username") or "").strip()
         p = (request.form.get("password") or "").strip()
@@ -481,6 +526,8 @@ def dashboard():
     alert_items.sort(key=lambda a: a["dias"])
     alertas = len(alert_items)
 
+    series = build_dashboard_series(usuarios)
+
     return render_template(
         "dashboard.html",
         user=u,
@@ -491,15 +538,17 @@ def dashboard():
         vpn=vpn,
         alertas=alertas,
         alert_items=alert_items[:10],
-        audit_items=auditoria_reciente(12)
+        audit_items=auditoria_reciente(12),
+        series_json=json.dumps(series, ensure_ascii=False),
     )
+
 
 @app.context_processor
 def inject_globals():
     u = session.get("user")
-    return {
-        "is_admin": is_admin_user(u) if u else False
-    }
+    return {"is_admin": is_admin_user(u) if u else False}
+
+
 @app.route("/admin/usuarios_red/nuevo", methods=["GET", "POST"])
 @admin_required
 def nuevo_usuario_red():
@@ -573,7 +622,7 @@ def editar_usuario_red_post(usuario_red):
     cambios["nivel_red"] = (cambios.get("nivel_red") or "NORMAL").upper()
     cambios["tiene_vpn"] = (cambios.get("tiene_vpn") or "NO").upper()
 
-    cambios.pop("usuario_red", None)
+    cambios.pop("usuario_red", None)  # no se edita
 
     if not cambios.get("nombres"):
         return render_template(

@@ -136,6 +136,25 @@
     </div>
   </div>
 
+  <hr class="sep">
+
+<div class="card" style="padding:12px; margin-top:10px;">
+  <h3 class="h3">Acciones rápidas</h3>
+  <p class="muted" style="margin-top:6px;">
+    Estos botones solo ajustan el formulario. Luego presiona <b>Guardar cambios</b>.
+  </p>
+
+  <div class="actions-row" style="margin-top:10px;">
+    <button type="button" class="btn danger" id="btnDisableVpn">
+      Desactivar VPN (NO)
+    </button>
+
+    <button type="button" class="btn warn" id="btnSetNormalRed">
+      Poner Red en NORMAL
+    </button>
+  </div>
+</div>
+
   <div class="actions-row">
     <button class="btn" type="submit">Guardar cambios</button>
 
@@ -231,6 +250,21 @@
   onSedeChange(true);
   toggleRedFechas();
   toggleVpnFechas();
+
+  // -------- BOTONES RAPIDOS --------
+  const btnDisableVpn = document.getElementById("btnDisableVpn");
+  const btnSetNormalRed = document.getElementById("btnSetNormalRed");
+
+  btnDisableVpn.addEventListener("click", () => {
+    vpnSel.value = "NO";
+    toggleVpnFechas(); // esto deshabilita y limpia vpn_inicio/vpn_fin
+  });
+
+  btnSetNormalRed.addEventListener("click", () => {
+    nivelSel.value = "NORMAL";
+    toggleRedFechas(); // esto deshabilita y limpia red_inicio/red_fin
+  });
+
 </script>
 
 {% endblock %}
