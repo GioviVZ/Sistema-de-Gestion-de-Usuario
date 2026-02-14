@@ -2,46 +2,22 @@
 {% block title %}Login | AccessUTI{% endblock %}
 
 {% block content %}
-<div class="auth-wrap">
+<div class="card" style="max-width:520px; margin:40px auto; padding:18px;">
+  <h2 class="h2">Iniciar sesión</h2>
+  <p class="muted">Usa tu usuario de AccessUTI</p>
 
-  <div class="auth-card">
-    <h2 class="auth-title">Iniciar sesión</h2>
-    <p class="auth-subtitle">Sistema Access UTI – INIA</p>
+  <form method="post" action="{{ url_for('auth.login_post') }}" class="form" style="margin-top:14px;">
+    <label class="label">Usuario</label>
+    <input class="input" name="username" required>
 
-    {% if error %}
-      <div class="banner danger">{{ error }}</div>
-    {% endif %}
+    <label class="label" style="margin-top:10px;">Contraseña</label>
+    <input class="input" type="password" name="password" required>
 
-    <form method="post" class="auth-form">
-      <div class="field">
-        <label>Usuario</label>
-        <input
-          type="text"
-          name="username"
-          placeholder="usuario"
-          required
-          autofocus
-        />
-      </div>
+    <button class="btn" style="margin-top:14px; width:100%;">Entrar</button>
 
-      <div class="field">
-        <label>Contraseña</label>
-        <input
-          type="password"
-          name="password"
-          placeholder="••••••••"
-          required
-        />
-      </div>
-
-      <button type="submit" class="btn full">Ingresar</button>
-    </form>
-
-    <div class="auth-hint">
-      <small class="muted">
-      </small>
-    </div>
-  </div>
-
+    <p class="muted" style="margin-top:12px; font-size:13px;">
+      Admin por defecto: <b>admin</b> / <b>admin123</b>
+    </p>
+  </form>
 </div>
 {% endblock %}

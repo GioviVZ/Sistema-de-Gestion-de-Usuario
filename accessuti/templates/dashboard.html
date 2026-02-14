@@ -2,256 +2,32 @@
 {% block title %}Dashboard | AccessUTI{% endblock %}
 
 {% block content %}
-
 <div class="page-head">
   <div>
     <h2 class="h2">Dashboard</h2>
-    <p class="muted">Resumen general de usuarios de red y accesos especiales</p>
+    <p class="muted">Resumen general</p>
   </div>
+
+  {% if user.role == "ADMIN" %}
+    <a class="btn ghost" href="{{ url_for('users.users_list') }}">Ver usuarios</a>
+  {% endif %}
 </div>
 
-<!-- SELECTOR INTERACTIVO -->
-<div class="card" style="padding:14px; margin-top:12px;">
-  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
-    <div style="flex:1; min-width:240px;">
-      <b>Conteo / Resumen por</b>
-      <select id="dimSelect">
-        <option value="SEDE">Sede</option>
-        <option value="DEPENDENCIA">Dependencia</option>
-        <option value="SUBDEPENDENCIA">Subdependencia</option>
-        <option value="NIVEL_RED">Permisos / Nivel de red</option>
-        <option value="VPN">VPN</option>
-        <option value="ESTADO">Estado</option>
-        <option value="CONTRATO">Tipo de contrato</option>
-      </select>
-    </div>
+<div class="grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+  <div class="card" style="padding:14px;">
+    <b>Total de usuarios</b>
+    <div style="font-size:34px; margin-top:8px;">{{ total_users }}</div>
+  </div>
 
-    <div>
-      <b>Top</b>
-      <select id="topN">
-        <option value="8">8</option>
-        <option value="12" selected>12</option>
-        <option value="20">20</option>
-      </select>
-    </div>
-
-    <div>
-      <button class="btn" type="button" id="btnRender">Mostrar</button>
-    </div>
+  <div class="card" style="padding:14px;">
+    <b>Últimos movimientos</b>
+    <ul style="margin-top:10px; padding-left:18px;">
+      {% for it in audit %}
+        <li class="muted">{{ it }}</li>
+      {% else %}
+        <li class="muted">Sin auditoría aún.</li>
+      {% endfor %}
+    </ul>
   </div>
 </div>
-
-<!-- GRAFICO DE BARRAS -->
-<div class="card" style="padding:14px; margin-top:12px;">
-  <div class="card-head">
-    <h3 class="h3" id="chartTitle">Conteo por Sede</h3>
-    <span class="chip ghost" id="chartTotal">—</span>
-  </div>
-
-  <div class="bars" id="barsWrap"></div>
-  <p class="muted" id="emptyMsg" style="display:none;">Sin datos para mostrar.</p>
-</div>
-
-<style>
-  .bars{display:flex; flex-direction:column; gap:10px;}
-  .barRow{display:grid; grid-template-columns: 1fr 2fr 70px; gap:10px; align-items:center;}
-  .barLabel{font-size:13px; color: rgba(234,240,255,.92); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .barTrack{height:12px; border-radius:999px; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); overflow:hidden;}
-  .barFill{height:100%; background: rgba(78,161,255,.45);}
-  .barVal{text-align:right; font-weight:800;}
-</style>
-
-<!-- KPIs -->
-<div class="grid-4 mt">
-  <div class="card kpi">
-    <div class="kpi-title">Total usuarios</div>
-    <div class="kpi-value">{{ total }}</div>
-    <div class="kpi-sub">Usuarios registrados</div>
-  </div>
-
-  <div class="card kpi">
-    <div class="kpi-title">Usuarios activos</div>
-    <div class="kpi-value">{{ activos }}</div>
-    <div class="kpi-sub">Estado ACTIVO</div>
-  </div>
-
-  <div class="card kpi">
-    <div class="kpi-title">Accesos especiales</div>
-    <div class="kpi-value">{{ especiales }}</div>
-    <div class="kpi-sub">Nivel ≠ NORMAL</div>
-  </div>
-
-  <div class="card kpi">
-    <div class="kpi-title">Usuarios con VPN</div>
-    <div class="kpi-value">{{ vpn }}</div>
-    <div class="kpi-sub">VPN habilitada</div>
-  </div>
-</div>
-
-<!-- ALERTAS + AUDITORIA -->
-<div class="grid-2 mt">
-
-  <!-- ALERTAS -->
-  <div class="card">
-    <div class="card-head">
-      <h3 class="h3">⚠️ Alertas de vencimiento</h3>
-      <span class="chip {% if alertas > 0 %}danger{% else %}ok{% endif %}">
-        {{ alertas }}
-      </span>
-    </div>
-
-    {% if alert_items and alert_items|length > 0 %}
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>Tipo</th>
-            <th>Fecha fin</th>
-            <th>Días</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in alert_items %}
-          <tr>
-            <td>
-              <a href="{{ url_for('consulta_usuario_red', ver=a.usuario_red) }}">
-                {{ a.usuario_red }}
-              </a>
-              <br>
-              <small class="muted">{{ a.nombres }}</small>
-            </td>
-            <td>{{ a.tipo }}</td>
-            <td>{{ a.fin }}</td>
-            <td>
-              <span class="pill {% if a.dias <= 0 %}danger{% elif a.dias <= 3 %}warn{% else %}ok{% endif %}">
-                {{ a.dias }}
-              </span>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="muted">No hay accesos próximos a vencer.</p>
-    {% endif %}
-  </div>
-
-  <!-- AUDITORIA -->
-  <div class="card">
-    <div class="card-head">
-      <h3 class="h3">🧾 Auditoría reciente</h3>
-      <span class="chip ghost">Pila (LIFO)</span>
-    </div>
-
-    {% if audit_items and audit_items|length > 0 %}
-      <div class="audit-list">
-        {% for it in audit_items %}
-          <div class="audit-item">
-            <div class="audit-top">
-              <b>{{ it.accion }}</b>
-              <span class="muted">{{ it.fecha }}</span>
-            </div>
-            <div class="muted">Usuario: <b>{{ it.usuario }}</b></div>
-            {% if it.detalle %}
-              <div class="muted">Detalle: {{ it.detalle }}</div>
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="muted">Aún no hay registros.</p>
-    {% endif %}
-  </div>
-
-</div>
-
-<script>
-  // series_json viene desde app.py: series_json=json.dumps(series,...)
-  const SERIES = {{ series_json | safe }};
-
-  const dimSelect = document.getElementById("dimSelect");
-  const topN = document.getElementById("topN");
-  const btnRender = document.getElementById("btnRender");
-
-  const barsWrap = document.getElementById("barsWrap");
-  const chartTitle = document.getElementById("chartTitle");
-  const chartTotal = document.getElementById("chartTotal");
-  const emptyMsg = document.getElementById("emptyMsg");
-
-  const DIM_LABEL = {
-    "SEDE": "Sede",
-    "DEPENDENCIA": "Dependencia",
-    "SUBDEPENDENCIA": "Subdependencia",
-    "NIVEL_RED": "Permisos / Nivel de red",
-    "VPN": "VPN",
-    "ESTADO": "Estado",
-    "CONTRATO": "Tipo de contrato",
-  };
-
-  function renderBars(dimKey, top) {
-    const data = (SERIES[dimKey] || []).slice(0, top);
-
-    chartTitle.textContent = `Conteo por ${DIM_LABEL[dimKey] || dimKey}`;
-    const total = (SERIES[dimKey] || []).reduce((acc, it) => acc + (it.count || 0), 0);
-    chartTotal.textContent = `${total}`;
-
-    barsWrap.innerHTML = "";
-
-    if (!data.length) {
-      emptyMsg.style.display = "block";
-      return;
-    }
-    emptyMsg.style.display = "none";
-
-    const max = Math.max(...data.map(x => x.count || 0), 1);
-
-    data.forEach(it => {
-      const row = document.createElement("div");
-      row.className = "barRow";
-
-      const label = document.createElement("div");
-      label.className = "barLabel";
-      label.title = it.label;
-      label.textContent = it.label;
-
-      const track = document.createElement("div");
-      track.className = "barTrack";
-
-      const fill = document.createElement("div");
-      fill.className = "barFill";
-      fill.style.width = `${Math.round((it.count * 100) / max)}%`;
-
-      track.appendChild(fill);
-
-      const val = document.createElement("div");
-      val.className = "barVal";
-      val.textContent = it.count;
-
-      row.appendChild(label);
-      row.appendChild(track);
-      row.appendChild(val);
-
-      barsWrap.appendChild(row);
-    });
-  }
-
-  function renderNow() {
-    const dim = dimSelect.value || "SEDE";
-    const top = parseInt(topN.value || "12", 10);
-    renderBars(dim, top);
-  }
-
-  btnRender.addEventListener("click", renderNow);
-
- 
-  window.addEventListener("DOMContentLoaded", () => {
-    
-    dimSelect.value = "SEDE";
-    topN.value = "12";
-    renderNow();
-  });
-
-
-</script>
-
 {% endblock %}
