@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, session, url_for, f
 import csv
 import os
 import json
+import heapq
 from openpyxl import load_workbook
 from datetime import datetime, date
 
@@ -368,6 +369,59 @@ def cargar_red():
 
 
 # ================= DASHBOARD: SERIES (INTERACTIVO) =================
+def agg_counts_heap(lista, field, top_n=12):
+    """
+    Cuenta ocurrencias de 'field' y retorna Top-N usando heap.
+    Retorna: { total, items:[{label,count,pct}], otros_count }
+    """
+    total = len(lista)
+    counts = {}
+
+    for x in lista:
+        v = (x.get(field) or "").strip()
+        if v == "":
+            v = "—"
+        counts[v] = counts.get(v, 0) + 1
+
+    # heapq.nlargest devuelve Top N por count (sin ordenar todo si no hace falta)
+    top = heapq.nlargest(top_n, counts.items(), key=lambda kv: kv[1])
+
+    items = []
+    top_sum = 0
+    for label, count in top:
+        top_sum += count
+        pct = int(round((count * 100) / total)) if total else 0
+        items.append({"label": label, "count": count, "pct": pct})
+
+    otros = max(0, total - top_sum)
+
+    return {
+        "total": total,
+        "items": items,
+        "otros_count": otros
+    }
+
+
+def build_dashboard_series_topn(usuarios, dim, top_n=12):
+    """
+    dim: SEDE | DEPENDENCIA | SUBDEPENDENCIA | NIVEL_RED | VPN | ESTADO | CONTRATO
+    """
+    dim = (dim or "SEDE").upper()
+    top_n = int(top_n or 12)
+
+    field_map = {
+        "SEDE": "sede",
+        "DEPENDENCIA": "dependencia",
+        "SUBDEPENDENCIA": "subdependencia",
+        "NIVEL_RED": "nivel_red",
+        "VPN": "tiene_vpn",
+        "ESTADO": "estado",
+        "CONTRATO": "tipo_contrato",
+    }
+
+    field = field_map.get(dim, "sede")
+    return agg_counts_heap(usuarios, field, top_n=top_n)
+
 def agg_counts(lista, field):
     """
     Retorna lista [{label,count,pct}] ordenado desc para un campo (field)
