@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Admin | AccessUTI{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h2 class="h2">Administración</h2>
+    <p class="muted">Registrar usuarios de red y permisos</p>
+  </div>
+  <a class="btn ghost" href="{{ url_for('users.dashboard') }}">Volver</a>
+</div>
+
+<div class="card" style="padding:14px;">
+  <b>Upsert por usuario_red</b>
+  <p class="muted" style="margin-top:6px;">Si el usuario_red existe, actualiza. Si no existe, crea.</p>
+
+  <form method="post" action="{{ url_for('users.users_upsert') }}" style="margin-top:12px; display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+    <div>
+      <label class="label">Nombres</label>
+      <input class="input" name="nombres" required>
+    </div>
+    <div>
+      <label class="label">Apellidos</label>
+      <input class="input" name="apellidos" required>
+    </div>
+    <div>
+      <label class="label">DNI</label>
+      <input class="input" name="dni">
+    </div>
+    <div>
+      <label class="label">Tipo contrato</label>
+      <select class="input" name="tipo_contrato">
+        <option value="CAS">CAS</option>
+        <option value="CAP">CAP</option>
+        <option value="TERCERO">TERCERO</option>
+      </select>
+    </div>
+    <div>
+      <label class="label">Contrato inicio (YYYY-MM-DD)</label>
+      <input class="input" name="contrato_inicio">
+    </div>
+    <div>
+      <label class="label">Contrato fin (YYYY-MM-DD)</label>
+      <input class="input" name="contrato_fin">
+    </div>
+
+    <div>
+      <label class="label">usuario_red</label>
+      <input class="input" name="usuario_red" required>
+    </div>
+    <div>
+      <label class="label">Sede</label>
+      <input class="input" name="sede">
+    </div>
+    <div>
+      <label class="label">Dependencia</label>
+      <input class="input" name="dependencia">
+    </div>
+    <div>
+      <label class="label">Subdependencia</label>
+      <input class="input" name="subdependencia">
+    </div>
+
+    <div>
+      <label class="label">Nivel acceso</label>
+      <select class="input" name="acceso_nivel">
+        <option value="LIBRE">LIBRE</option>
+        <option value="COMUN">COMUN</option>
+        <option value="NORMAL" selected>NORMAL</option>
+      </select>
+    </div>
+    <div>
+      <label class="label">Acceso redes sociales</label>
+      <select class="input" name="acceso_redes_sociales">
+        <option value="NO" selected>NO</option>
+        <option value="SI">SI</option>
+      </select>
+    </div>
+    <div>
+      <label class="label">Permiso inicio</label>
+      <input class="input" name="permiso_inicio">
+    </div>
+    <div>
+      <label class="label">Permiso fin</label>
+      <input class="input" name="permiso_fin">
+    </div>
+
+    <div>
+      <label class="label">VPN activo</label>
+      <select class="input" name="vpn_activo">
+        <option value="NO" selected>NO</option>
+        <option value="SI">SI</option>
+      </select>
+    </div>
+    <div>
+      <label class="label">VPN inicio</label>
+      <input class="input" name="vpn_inicio">
+    </div>
+    <div>
+      <label class="label">VPN fin</label>
+      <input class="input" name="vpn_fin">
+    </div>
+
+    <div>
+      <label class="label">Permisos activos (apagador)</label>
+      <select class="input" name="permisos_activos">
+        <option value="SI" selected>SI</option>
+        <option value="NO">NO</option>
+      </select>
+    </div>
+
+    <div style="grid-column:1 / -1;">
+      <button class="btn" style="width:100%;">Guardar / Actualizar</button>
+    </div>
+  </form>
+</div>
+
+<div class="grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px; margin-top:12px;">
+  <div class="card" style="padding:14px;">
+    <b>Desactivar usuario</b>
+    <form method="post" action="{{ url_for('users.users_deactivate') }}" style="margin-top:10px; display:flex; gap:10px;">
+      <input class="input" name="usuario_red" placeholder="usuario_red" required>
+      <button class="btn ghost">Desactivar</button>
+    </form>
+  </div>
+
+  <div class="card" style="padding:14px;">
+    <b>Desactivar permisos especiales</b>
+    <form method="post" action="{{ url_for('users.users_deactivate_perms') }}" style="margin-top:10px; display:flex; gap:10px;">
+      <input class="input" name="usuario_red" placeholder="usuario_red" required>
+      <button class="btn ghost">Apagar permisos</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

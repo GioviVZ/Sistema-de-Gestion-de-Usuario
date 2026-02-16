@@ -1,34 +1,265 @@
-{% extends "base.html" %}
-{% block title %}Usuarios | AccessUTI{% endblock %}
+:root{
+  /* === PALETA CLARA INSTITUCIONAL === */
+  --bg:#f4f7fb;
+  --bg-soft:#ffffff;
 
-{% block content %}
-<div class="page-head">
-  <div>
-    <h2 class="h2">Usuarios</h2>
-    <p class="muted">Listado (ordenado por username usando BST)</p>
-  </div>
-</div>
+  --text:#0f172a;
+  --muted:#64748b;
 
-<div class="card" style="padding:14px;">
-  <table class="table" style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:10px;">Usuario</th>
-        <th style="text-align:left; padding:10px;">Nombre</th>
-        <th style="text-align:left; padding:10px;">Rol</th>
-        <th style="text-align:left; padding:10px;">Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for u in users %}
-      <tr>
-        <td style="padding:10px;">{{ u.username }}</td>
-        <td style="padding:10px;">{{ u.full_name }}</td>
-        <td style="padding:10px;">{{ u.role }}</td>
-        <td style="padding:10px;">{{ u.status }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endblock %}
+  --primary:#1f5fa5;
+  --primary-soft:#e8f1fb;
+
+  --border:#e2e8f0;
+
+  --success:#22c55e;
+  --warning:#f59e0b;
+  --danger:#ef4444;
+}
+
+/* ================= GLOBAL ================= */
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container{
+  max-width:1200px;
+  margin:0 auto;
+  padding:0 18px;
+}
+
+/* ================= TOPBAR ================= */
+
+.topbar{
+  background: #ffffff;
+  border-bottom:1px solid var(--border);
+}
+
+.topbar__inner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 0;
+}
+
+.brand{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+
+.brand__logo{
+  background: var(--primary);
+  color:white;
+  padding:8px 12px;
+  border-radius:10px;
+  font-weight:800;
+}
+
+.brand__text h1{
+  margin:0;
+  font-size:18px;
+}
+
+.brand__text p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.nav{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+/* ================= CARDS ================= */
+
+.card{
+  background: var(--bg-soft);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.04);
+}
+
+.h2{
+  margin:0;
+  font-size:22px;
+}
+
+.muted{
+  color:var(--muted);
+}
+
+.page-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  margin-bottom:20px;
+}
+
+/* ================= INPUTS ================= */
+
+.label{
+  display:block;
+  margin-top:10px;
+  margin-bottom:6px;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.input{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#ffffff;
+  color:var(--text);
+  outline:none;
+  transition:.2s;
+}
+
+.input:focus{
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(31,95,165,.15);
+}
+
+/* ================= BUTTONS ================= */
+
+.btn{
+  padding:9px 14px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background: var(--primary);
+  color:white;
+  cursor:pointer;
+  text-decoration:none;
+  font-size:14px;
+  transition:.2s;
+}
+
+.btn:hover{
+  filter: brightness(1.05);
+}
+
+.btn.ghost{
+  background:white;
+  color:var(--primary);
+  border:1px solid var(--primary);
+}
+
+.btn.success{
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.btn.danger{
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn.warning{
+  background: var(--warning);
+  border-color: var(--warning);
+}
+
+/* ================= CHIPS ================= */
+
+.chip{
+  padding:5px 10px;
+  border-radius:999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size:12px;
+  font-weight:600;
+}
+
+.chip.ghost{
+  background:#f1f5f9;
+  color:var(--muted);
+}
+
+/* ================= BADGES ================= */
+
+.badge{
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.badge-ok{
+  background: rgba(34,197,94,.15);
+  color: var(--success);
+}
+
+.badge-bad{
+  background: rgba(239,68,68,.15);
+  color: var(--danger);
+}
+
+/* ================= ALERTS ================= */
+
+.alert{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  margin-bottom:8px;
+}
+
+.alert.success{ background: rgba(34,197,94,.15); color:var(--success); }
+.alert.danger{ background: rgba(239,68,68,.15); color:var(--danger); }
+.alert.warning{ background: rgba(245,158,11,.15); color:var(--warning); }
+.alert.info{ background: rgba(59,130,246,.15); color:var(--primary); }
+
+/* ================= GRID ================= */
+
+.grid2{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap:15px;
+}
+
+/* ================= MODAL ================= */
+
+.modal{
+  display:none;
+  position:fixed;
+  left:0; top:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,.3);
+  backdrop-filter: blur(3px);
+  z-index:1000;
+}
+
+.modal-content{
+  background:white;
+  width:min(650px, 95vw);
+  max-height:85vh;
+  overflow-y:auto;
+  margin:5vh auto;
+  padding:22px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  box-shadow:0 20px 60px rgba(0,0,0,.15);
+}
+
+.close{
+  position:absolute;
+  right:16px;
+  top:12px;
+  font-size:24px;
+  cursor:pointer;
+  color:var(--muted);
+}
+
+.close:hover{
+  color:var(--text);
+}

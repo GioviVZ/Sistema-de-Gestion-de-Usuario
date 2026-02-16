@@ -1,29 +1,61 @@
-import csv
-import os
-from typing import List, Dict
+import csv, os
 
-FIELDS = ["username", "full_name", "role", "password_hash", "status"]
+FIELDS = [
+    "usuario_red",
+    "nombres",
+    "apellidos",
+    "dni",
+    "tipo_contrato",
+    "contrato_inicio",
+    "contrato_fin",
+    "sede",
+    "dependencia",
+    "subdependencia",
 
+    # Permisos especiales
+    "acceso_nivel",            # LIBRE | COMUN | NORMAL
+    "acceso_redes_sociales",   # SI | NO
+    "permiso_inicio",
+    "permiso_fin",
+
+    # VPN
+    "vpn_activo",              # SI | NO
+    "vpn_inicio",
+    "vpn_fin",
+
+    # Estados
+    "permisos_activos",        # SI | NO
+    "status"                   # ACTIVE | INACTIVE
+]
 
 class CSVStore:
-    def __init__(self, csv_path: str):
-        self.csv_path = csv_path
-        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-        self._ensure_file()
+    def __init__(self, path):
+        self.path = path
+        os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    def _ensure_file(self):
-        if not os.path.exists(self.csv_path):
-            with open(self.csv_path, "w", newline="", encoding="utf-8") as f:
-                w = csv.DictWriter(f, fieldnames=FIELDS)
-                w.writeheader()
+        if not os.path.exists(path):
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                csv.DictWriter(f, fieldnames=FIELDS).writeheader()
 
-    def read_all(self) -> List[Dict]:
-        with open(self.csv_path, "r", newline="", encoding="utf-8") as f:
+    def read_all(self):
+        if not os.path.exists(self.path):
+            with open(self.path, "w", newline="", encoding="utf-8") as f:
+                csv.DictWriter(f, fieldnames=FIELDS).writeheader()
+
+        with open(self.path, "r", newline="", encoding="utf-8") as f:
             r = csv.DictReader(f)
-            return list(r)
+            out = []
+            for row in r:
+                # compatibilidad: rellenar faltantes
+                fixed = {k: (row.get(k, "") or "") for k in FIELDS}
+                # si venía "username" viejo, úsalo como usuario_red si falta
+                if not fixed["usuario_red"] and row.get("username"):
+                    fixed["usuario_red"] = (row.get("username") or "").strip().lower()
+                out.append(fixed)
+            return out
 
-    def write_all(self, rows: List[Dict]) -> None:
-        with open(self.csv_path, "w", newline="", encoding="utf-8") as f:
+    def write_all(self, rows):
+        with open(self.path, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=FIELDS)
             w.writeheader()
             for row in rows:

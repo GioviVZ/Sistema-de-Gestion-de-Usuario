@@ -1,6 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from ..core.auth import login_user, logout_user
-from ..core.decorators import login_required
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -13,21 +11,23 @@ def login_post():
     from flask import current_app
     svc = current_app.extensions["user_service"]
 
-    username = request.form.get("username", "").strip()
-    password = request.form.get("password", "")
+    username = request.form.get("username","").strip().lower()
+    password = request.form.get("password","")
 
     u = svc.validate_login(username, password)
+
     if not u:
-        flash("Credenciales inválidas o usuario inactivo.", "danger")
+        flash("Credenciales inválidas","danger")
         return redirect(url_for("auth.login"))
 
-    login_user({"username": u.username, "full_name": u.full_name, "role": u.role})
-    flash(f"Bienvenido, {u.full_name or u.username}.", "success")
+    session["user"] = {
+        "username": u.username,
+        "role": u.role
+    }
+
     return redirect(url_for("users.dashboard"))
 
 @auth_bp.get("/logout")
-@login_required
 def logout():
-    logout_user()
-    flash("Sesión cerrada.", "info")
+    session.clear()
     return redirect(url_for("auth.login"))

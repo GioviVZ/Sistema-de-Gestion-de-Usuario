@@ -4,9 +4,9 @@
 {% block content %}
 <div class="card" style="max-width:520px; margin:40px auto; padding:18px;">
   <h2 class="h2">Iniciar sesión</h2>
-  <p class="muted">Usa tu usuario de AccessUTI</p>
+  <p class="muted">Usa tu usuario</p>
 
-  <form method="post" action="{{ url_for('auth.login_post') }}" class="form" style="margin-top:14px;">
+  <form method="post" action="{{ url_for('auth.login_post') }}" style="margin-top:14px;">
     <label class="label">Usuario</label>
     <input class="input" name="username" required>
 

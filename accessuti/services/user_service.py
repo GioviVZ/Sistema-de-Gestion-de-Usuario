@@ -1,94 +1,311 @@
 from dataclasses import dataclass
-from typing import Optional, List
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, date
 
 from ..ds.bst import BST
 from ..ds.linked_list import LinkedList
-from ..ds.stack import Stack
-from ..storage.csv_store import CSVStore
+from ..ds.stack import Stack, audit_event
+
+
+# =========================
+# UTILIDADES
+# =========================
+
+def _parse_date(s: str):
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except:
+        return None
+
+
+def _days_left(d):
+    if not d:
+        return None
+    return (d - date.today()).days
+
+
+# =========================
+# MODELOS
+# =========================
+
+@dataclass
+class AppUser:
+    username: str
+    password_hash: str
+    role: str
 
 
 @dataclass
-class User:
-    username: str
-    full_name: str
-    role: str
-    password_hash: str
+class NetworkUser:
+    usuario_red: str = ""
+    nombres: str = ""
+    apellidos: str = ""
+    dni: str = ""
+    tipo_contrato: str = ""
+    contrato_inicio: str = ""
+    contrato_fin: str = ""
+    sede: str = ""
+    dependencia: str = ""
+    subdependencia: str = ""
+
+    acceso_nivel: str = "NORMAL"
+    acceso_redes_sociales: str = "NO"
+    permiso_inicio: str = ""
+    permiso_fin: str = ""
+
+    vpn_activo: str = "NO"
+    vpn_inicio: str = ""
+    vpn_fin: str = ""
+
+    permisos_activos: str = "SI"
     status: str = "ACTIVE"
 
 
+# =========================
+# SERVICIO PRINCIPAL
+# =========================
+
 class UserService:
-    def __init__(self, store: CSVStore):
+
+    def __init__(self, store):
         self.store = store
         self.audit = Stack()
         self._bst = BST()
         self._list = LinkedList()
-        self._reload()
 
-    def _reload(self):
-        self._bst = BST()
-        self._list = LinkedList()
-        for r in self.store.read_all():
-            u = User(
-                username=r["username"],
-                full_name=r.get("full_name", ""),
-                role=r.get("role", "CONSULTA"),
-                password_hash=r.get("password_hash", ""),
-                status=r.get("status", "ACTIVE"),
-            )
-            self._bst.insert(u.username.strip().lower(), u)
-            self._list.append(u)
+        self._load_network_users()
 
-    def ensure_admin(self):
-        if self.get_by_username("admin"):
-            return
-        self.create_user("admin", "Administrador", "ADMIN", "admin123")
-        self.audit.push("Se creó usuario admin por defecto (admin/admin123).")
+        # Usuarios fijos del sistema
+        self.app_users = {
+            "admin": AppUser("admin", generate_password_hash("admin123"), "ADMIN"),
+            "consulta": AppUser("consulta", generate_password_hash("consulta123"), "CONSULTA"),
+        }
 
-    def list_users(self) -> List[User]:
-        return self._bst.inorder()
+    # ================= LOGIN =================
 
-    def get_by_username(self, username: str) -> Optional[User]:
-        if not username:
-            return None
-        return self._bst.search(username.strip().lower())
-
-    def create_user(self, username: str, full_name: str, role: str, password_plain: str) -> User:
-        username_norm = username.strip().lower()
-        if self.get_by_username(username_norm):
-            raise ValueError("El usuario ya existe.")
-
-        u = User(
-            username=username_norm,
-            full_name=full_name.strip(),
-            role=role.strip().upper(),
-            password_hash=generate_password_hash(password_plain),
-            status="ACTIVE",
-        )
-
-        rows = self.store.read_all()
-        rows.append({
-            "username": u.username,
-            "full_name": u.full_name,
-            "role": u.role,
-            "password_hash": u.password_hash,
-            "status": u.status,
-        })
-        self.store.write_all(rows)
-        self._reload()
-
-        self.audit.push(f"Creado usuario: {u.username} ({u.role})")
-        return u
-
-    def validate_login(self, username: str, password_plain: str) -> Optional[User]:
-        u = self.get_by_username(username)
+    def validate_login(self, username, password):
+        username = (username or "").strip().lower()
+        u = self.app_users.get(username)
         if not u:
             return None
-        if u.status != "ACTIVE":
-            return None
-        if not check_password_hash(u.password_hash, password_plain):
+        if not check_password_hash(u.password_hash, password):
             return None
         return u
 
-    def audit_tail(self, limit: int = 15):
-        return self.audit.to_list()[:limit]
+    # ================= LOAD =================
+
+    def _load_network_users(self):
+        self._bst = BST()
+        self._list = LinkedList()
+
+        for r in self.store.read_all():
+            u = NetworkUser(**r)
+
+            if not u.usuario_red:
+                continue
+
+            key = u.usuario_red.strip().lower()
+            u.usuario_red = key
+
+            self._bst.insert(key, u)
+            self._list.append(u)
+
+    # ================= MÉTRICAS =================
+
+    def bst_metrics(self):
+        return {"comparisons": getattr(self._bst, "last_comparisons", 0)}
+
+    # ================= HELPERS =================
+
+    def _upsert_row(self, usuario_red: str, new_row: dict):
+        rows = self.store.read_all()
+        found = False
+        for row in rows:
+            if (row.get("usuario_red") or "").strip().lower() == usuario_red:
+                row.update(new_row)
+                found = True
+                break
+        if not found:
+            rows.append(new_row)
+        self.store.write_all(rows)
+        self._load_network_users()
+
+    # ================= CRUD =================
+
+    def register_network_user(self, data: dict, actor="admin"):
+        usuario_red = (data.get("usuario_red") or "").strip().lower()
+        if not usuario_red:
+            raise ValueError("usuario_red es obligatorio.")
+
+        def norm(v): return (v or "").strip()
+
+        new_row = {
+            "usuario_red": usuario_red,
+            "nombres": norm(data.get("nombres")),
+            "apellidos": norm(data.get("apellidos")),
+            "dni": norm(data.get("dni")),
+            "tipo_contrato": norm(data.get("tipo_contrato")).upper(),
+            "contrato_inicio": norm(data.get("contrato_inicio")),
+            "contrato_fin": norm(data.get("contrato_fin")),
+            "sede": norm(data.get("sede")),
+            "dependencia": norm(data.get("dependencia")),
+            "subdependencia": norm(data.get("subdependencia")),
+
+            "acceso_nivel": (norm(data.get("acceso_nivel")) or "NORMAL").upper(),
+            "acceso_redes_sociales": (norm(data.get("acceso_redes_sociales")) or "NO").upper(),
+            "permiso_inicio": norm(data.get("permiso_inicio")),
+            "permiso_fin": norm(data.get("permiso_fin")),
+
+            "vpn_activo": (norm(data.get("vpn_activo")) or "NO").upper(),
+            "vpn_inicio": norm(data.get("vpn_inicio")),
+            "vpn_fin": norm(data.get("vpn_fin")),
+
+            "permisos_activos": (norm(data.get("permisos_activos")) or "SI").upper(),
+            "status": "ACTIVE",
+        }
+
+        self._upsert_row(usuario_red, new_row)
+        self.audit.push(audit_event(f"Registrado/actualizado {usuario_red}", actor))
+
+    def deactivate_user(self, usuario_red, actor="admin"):
+        usuario_red = (usuario_red or "").strip().lower()
+        rows = self.store.read_all()
+        ok = False
+        for row in rows:
+            if (row.get("usuario_red") or "").strip().lower() == usuario_red:
+                row["status"] = "INACTIVE"
+                ok = True
+                break
+        if not ok:
+            raise ValueError("Usuario no existe.")
+        self.store.write_all(rows)
+        self._load_network_users()
+        self.audit.push(audit_event(f"Desactivado usuario {usuario_red}", actor))
+
+    def activate_user(self, usuario_red, actor="admin"):
+        usuario_red = (usuario_red or "").strip().lower()
+        rows = self.store.read_all()
+        ok = False
+        for row in rows:
+            if (row.get("usuario_red") or "").strip().lower() == usuario_red:
+                row["status"] = "ACTIVE"
+                ok = True
+                break
+        if not ok:
+            raise ValueError("Usuario no existe.")
+        self.store.write_all(rows)
+        self._load_network_users()
+        self.audit.push(audit_event(f"Reactivado usuario {usuario_red}", actor))
+
+    def deactivate_special_permissions(self, usuario_red, actor="admin"):
+        usuario_red = (usuario_red or "").strip().lower()
+        rows = self.store.read_all()
+        ok = False
+
+        for row in rows:
+            if (row.get("usuario_red") or "").strip().lower() == usuario_red:
+                row["permisos_activos"] = "NO"
+                row["vpn_activo"] = "NO"
+                row["acceso_redes_sociales"] = "NO"
+                ok = True
+                break
+
+        if not ok:
+            raise ValueError("Usuario no existe.")
+
+        self.store.write_all(rows)
+        self._load_network_users()
+        self.audit.push(audit_event(f"Permisos especiales apagados {usuario_red}", actor))
+
+    # ================= QUERIES =================
+
+    def get_network_user(self, usuario_red):
+        return self._bst.search((usuario_red or "").strip().lower())
+
+    def total_network_users(self):
+        return sum(1 for u in self._list.to_list() if u.status == "ACTIVE")
+
+    # ================= FILTROS =================
+
+    def filter_users(self, nombre=None, sede=None, dependencia=None, subdependencia=None):
+        results = []
+
+        nombre = (nombre or "").strip().lower()
+        sede = (sede or "").strip()
+        dependencia = (dependencia or "").strip()
+        subdependencia = (subdependencia or "").strip()
+
+        for u in self._list.to_list():
+            if u.status != "ACTIVE":
+                continue
+
+            if nombre:
+                full = f"{u.nombres} {u.apellidos}".lower()
+                if nombre not in full and nombre not in (u.usuario_red or ""):
+                    continue
+
+            if sede and u.sede != sede:
+                continue
+            if dependencia and u.dependencia != dependencia:
+                continue
+            if subdependencia and u.subdependencia != subdependencia:
+                continue
+
+            results.append(u)
+
+        return results
+
+    # ================= ALERTAS =================
+
+    def expiring_alerts(self, days=15):
+        alerts = []
+
+        for u in self._list.to_list():
+            if u.status != "ACTIVE":
+                continue
+
+            # contrato
+            cfin = _parse_date(u.contrato_fin)
+            left = _days_left(cfin)
+            if left is not None and left <= days:
+                alerts.append({"tipo": "CONTRATO", "u": u, "dias": left, "vence": u.contrato_fin})
+
+            # permisos
+            if u.permisos_activos == "SI":
+                pfin = _parse_date(u.permiso_fin)
+                leftp = _days_left(pfin)
+                if leftp is not None and leftp <= days:
+                    alerts.append({"tipo": "PERMISOS", "u": u, "dias": leftp, "vence": u.permiso_fin})
+
+            # vpn
+            if u.vpn_activo == "SI":
+                vfin = _parse_date(u.vpn_fin)
+                leftv = _days_left(vfin)
+                if leftv is not None and leftv <= days:
+                    alerts.append({"tipo": "VPN", "u": u, "dias": leftv, "vence": u.vpn_fin})
+
+        alerts.sort(key=lambda x: x["dias"])  # menor días primero
+        return alerts
+
+    # ================= DASHBOARD CHARTS =================
+
+    def count_by_sede(self):
+        counts = {}
+        for u in self._list.to_list():
+            if u.status != "ACTIVE":
+                continue
+            s = (u.sede or "SIN SEDE").strip() or "SIN SEDE"
+            counts[s] = counts.get(s, 0) + 1
+        return dict(sorted(counts.items(), key=lambda kv: kv[1], reverse=True))
+
+    def count_by_contrato(self):
+        counts = {}
+        for u in self._list.to_list():
+            if u.status != "ACTIVE":
+                continue
+            t = (u.tipo_contrato or "SIN TIPO").strip().upper() or "SIN TIPO"
+            counts[t] = counts.get(t, 0) + 1
+        return dict(sorted(counts.items(), key=lambda kv: kv[1], reverse=True))

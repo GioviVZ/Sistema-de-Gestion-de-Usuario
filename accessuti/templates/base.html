@@ -1,9 +1,10 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
   <title>{% block title %}AccessUTI{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -11,35 +12,39 @@
 <header class="topbar">
   <div class="container topbar__inner">
     <div class="brand">
-      <span class="brand__logo">INIA</span>
+      <span class="brand__logo">UTI</span>
       <div class="brand__text">
         <h1>AccessUTI</h1>
-        <p>Sistema de Gestión de Usuarios</p>
+        <p>Sistema de Gestión</p>
       </div>
     </div>
 
     <nav class="nav">
-      {% if user %}
-        <span class="chip">{{ user.full_name or user.username }}</span>
-        <span class="chip ghost">{{ user.role }}</span>
-        <a class="btn ghost" href="{{ url_for('auth.logout') }}">Salir</a>
+      {% if session.get('user') %}
+        <span class="chip">{{ session.get('user').get('username') }}</span>
+        <span class="chip ghost">{{ session.get('user').get('role') }}</span>
+        <a class="btn danger" href="{{ url_for('auth.logout') }}">Salir</a>
       {% endif %}
     </nav>
   </div>
 </header>
 
-<main class="container" style="padding:18px 0;">
+<main class="container" style="padding:20px;">
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div style="display:grid; gap:10px; margin-bottom:12px;">
+      <div style="margin-bottom:15px;">
         {% for category, message in messages %}
-          <div class="alert {{ category }}">{{ message }}</div>
+          <div class="alert {{ category }}" style="margin-bottom:8px;">
+            {{ message }}
+          </div>
         {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
 
   {% block content %}{% endblock %}
+
 </main>
 
 </body>
