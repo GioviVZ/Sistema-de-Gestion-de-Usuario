@@ -5,7 +5,7 @@
 
 <div class="page-head" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
   <div>
-    <h2 class="h2">Panel de Control</h2>
+    <h2 class="h2">Dashboard</h2>
     <div class="muted">Gestión integral de usuarios de red</div>
   </div>
 
@@ -14,13 +14,49 @@
   {% endif %}
 </div>
 
+<!-- ================= GRAFICOS ================= -->
+<div class="grid" style="display:grid; grid-template-columns:1fr; gap:18px; margin-bottom:25px;">
+  <div class="card" style="padding:20px;">
+    <h3>Usuarios activos por sede</h3>
+    <img src="{{ url_for('users.chart_users_by_sede') }}?v={{ now_ts }}" style="width:100%; max-height:400px;">
+  </div>
+
+  <div class="card" style="padding:20px;">
+    <h3>Usuarios activos por tipo de contrato</h3>
+    <img src="{{ url_for('users.chart_users_by_contrato') }}?v={{ now_ts }}" style="width:100%; max-height:400px;">
+  </div>
+
+  <div class="card" style="padding:20px;">
+    <h3>Alertas por tipo (próximos 15 días)</h3>
+    <img src="{{ url_for('users.chart_alerts_by_tipo') }}?v={{ now_ts }}" style="width:100%; max-height:400px;">
+  </div>
+</div>
+
+<!-- ================= KPIs ================= -->
+<div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px; margin-bottom:25px;">
+  <div class="card" style="padding:18px;">
+    <b>Total usuarios activos</b>
+    <div style="font-size:34px;">{{ total }}</div>
+  </div>
+
+  <div class="card" style="padding:18px;">
+    <b>Total alertas</b>
+    <div style="font-size:34px;">{{ alerts|length }}</div>
+  </div>
+
+  <div class="card" style="padding:18px;">
+    <b>Métricas BST</b>
+    <div class="muted">Comparaciones: {{ metrics.comparisons }}</div>
+  </div>
+</div>
+
 <!-- ================= FILTROS ================= -->
 <div class="card" style="padding:20px; margin-bottom:25px;">
-  <h3>Busqueda</h3>
+  <h3>Búsqueda</h3>
 
   <form method="get" class="grid2">
     <div>
-      <label>Nombre / Usuario de Red</label>
+      <label>Nombre / Usuario de red</label>
       <input class="input" name="nombre" value="{{ nombre }}">
     </div>
 
@@ -89,40 +125,9 @@
 </div>
 {% endif %}
 
-<!-- ================= KPIs ================= -->
-<div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px; margin-bottom:25px;">
-  <div class="card" style="padding:18px;">
-    <b>Total usuarios activos</b>
-    <div style="font-size:34px;">{{ total }}</div>
-  </div>
-
-  <div class="card" style="padding:18px;">
-    <b>Total Alertas</b>
-    <div style="font-size:34px;">{{ alerts|length }}</div>
-  </div>
-
-  <div class="card" style="padding:18px;">
-    <b>Métricas BST</b>
-    <div class="muted">Comparaciones: {{ metrics.comparisons }}</div>
-  </div>
-</div>
-
-<!-- ================= GRAFICOS ================= -->
-<div class="grid" style="display:grid; grid-template-columns:1fr; gap:18px; margin-bottom:25px;">
-  <div class="card" style="padding:20px;">
-    <h3>Usuarios activos por sede</h3>
-    <img src="{{ url_for('users.chart_users_by_sede') }}" style="width:100%; max-height:400px;">
-  </div>
-
-  <div class="card" style="padding:20px;">
-    <h3>Usuarios activos por tipo de contrato</h3>
-    <img src="{{ url_for('users.chart_users_by_contrato') }}" style="width:100%; max-height:400px;">
-  </div>
-</div>
-
 <!-- ================= ALERTAS ================= -->
 <div class="card" style="padding:20px; margin-bottom:25px;">
-  <h3>⚠ Próximos vencimientos (ordenado por días restantes)</h3>
+  <h3>⚠ Próximos vencimientos</h3>
 
   {% for a in alerts %}
     {% set color = "#2fb7da" %}
@@ -193,14 +198,14 @@
 
     <h3 id="modalTitle">Registrar Usuario</h3>
 
-    <form method="post" action="{{ url_for('users.register_network_user') }}" class="grid2">
+    <form method="post" action="{{ url_for('users.register_network_user') }}" class="grid2" id="userForm">
 
       <div style="grid-column:1/-1;">
-        <h4>Datos Personales</h4>
+        <h4>Datos personales</h4>
       </div>
 
       <div>
-        <label>Usuario Red</label>
+        <label>Usuario red</label>
         <input class="input" name="usuario_red" required>
       </div>
       <div>
@@ -221,53 +226,59 @@
       </div>
 
       <div>
-        <label>Tipo Contrato</label>
-        <select class="input" name="tipo_contrato">
+        <label>Tipo contrato</label>
+        <select class="input" name="tipo_contrato" id="tipoContratoSel">
           <option value="">Seleccione</option>
-          <option>CAS</option>
-          <option>CAP</option>
-          <option>TERCERO</option>
+          <option value="CAS">CAS</option>
+          <option value="CAP">CAP</option>
+          <option value="TERCERO">TERCERO</option>
         </select>
       </div>
       <div>
-        <label>Inicio Contrato</label>
+        <label>Inicio contrato</label>
         <input class="input" type="date" name="contrato_inicio">
       </div>
       <div>
-        <label>Fin Contrato</label>
+        <label>Fin contrato</label>
         <input class="input" type="date" name="contrato_fin">
       </div>
 
       <div style="grid-column:1/-1;">
         <h4>Ubicación</h4>
+        <div class="muted" style="margin-top:-6px;">Select con buscador interno + cascada</div>
       </div>
 
-      <!-- buscadores internos -->
       <div>
-        <label>Buscar Sede</label>
-        <input class="input" id="searchSede" placeholder="escribe para filtrar...">
+        <label>Buscar sede</label>
+        <input class="input" id="searchSede" placeholder="Escribe para filtrar...">
       </div>
       <div>
         <label>Sede</label>
-        <select class="input" id="sedeSel" name="sede" required></select>
+        <select class="input" name="sede" id="sedeSel">
+          <option value="">Cargando...</option>
+        </select>
       </div>
 
       <div>
-        <label>Buscar Dependencia</label>
-        <input class="input" id="searchDep" placeholder="escribe para filtrar...">
+        <label>Buscar dependencia</label>
+        <input class="input" id="searchDep" placeholder="Escribe para filtrar...">
       </div>
       <div>
         <label>Dependencia</label>
-        <select class="input" id="depSel" name="dependencia"></select>
+        <select class="input" name="dependencia" id="depSel">
+          <option value="">Seleccione sede</option>
+        </select>
       </div>
 
       <div>
-        <label>Buscar Subdependencia</label>
-        <input class="input" id="searchSub" placeholder="escribe para filtrar...">
+        <label>Buscar subdependencia</label>
+        <input class="input" id="searchSub" placeholder="Escribe para filtrar...">
       </div>
       <div>
         <label>Subdependencia</label>
-        <select class="input" id="subSel" name="subdependencia"></select>
+        <select class="input" name="subdependencia" id="subSel">
+          <option value="">Seleccione dependencia</option>
+        </select>
       </div>
 
       <div style="grid-column:1/-1;">
@@ -275,28 +286,27 @@
       </div>
 
       <div>
-        <label>Nivel de Acceso</label>
-        <select class="input" name="acceso_nivel">
+        <label>Nivel de acceso</label>
+        <select class="input" name="acceso_nivel" id="accesoNivelSel">
           <option value="NORMAL">NORMAL</option>
-          <option value="COMUN">COMUN</option>
-          <option value="LIBRE">LIBRE</option>
+          <option value="ADMINISTRADOR">ADMINISTRADOR</option>
         </select>
       </div>
 
       <div>
-        <label>Acceso Redes Sociales</label>
-        <select class="input" name="acceso_redes_sociales">
+        <label>Acceso redes sociales</label>
+        <select class="input" name="acceso_redes_sociales" id="redesSel">
           <option value="NO">NO</option>
           <option value="SI">SI</option>
         </select>
       </div>
 
       <div>
-        <label>Permiso Inicio</label>
+        <label>Permiso inicio</label>
         <input class="input" type="date" name="permiso_inicio">
       </div>
       <div>
-        <label>Permiso Fin</label>
+        <label>Permiso fin</label>
         <input class="input" type="date" name="permiso_fin">
       </div>
 
@@ -305,19 +315,19 @@
       </div>
 
       <div>
-        <label>VPN Activo</label>
-        <select class="input" name="vpn_activo">
+        <label>VPN activo</label>
+        <select class="input" name="vpn_activo" id="vpnSel">
           <option value="NO">NO</option>
           <option value="SI">SI</option>
         </select>
       </div>
 
       <div>
-        <label>VPN Inicio</label>
+        <label>VPN inicio</label>
         <input class="input" type="date" name="vpn_inicio">
       </div>
       <div>
-        <label>VPN Fin</label>
+        <label>VPN fin</label>
         <input class="input" type="date" name="vpn_fin">
       </div>
 
@@ -339,99 +349,147 @@ function closeModal(){
 }
 
 /* ================= ORG JSON + SELECTS ================= */
-let orgData = {};
+let orgData = null;
+let orgReady = false;
+
 let sedeOptions = [];
 let depOptions = [];
 let subOptions = [];
 
 const sedeSel = document.getElementById("sedeSel");
-const depSel = document.getElementById("depSel");
-const subSel = document.getElementById("subSel");
+const depSel  = document.getElementById("depSel");
+const subSel  = document.getElementById("subSel");
 
-fetch("/static/data/org.json")
-  .then(r => r.json())
-  .then(data => {
-    orgData = data;
-    buildSedes();
+const searchSede = document.getElementById("searchSede");
+const searchDep  = document.getElementById("searchDep");
+const searchSub  = document.getElementById("searchSub");
+
+function setOptions(select, items, placeholder="Seleccione"){
+  if(!select) return;
+  select.innerHTML = `<option value="">${placeholder}</option>`;
+  (items || []).forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
   });
-
-function setOptions(select, items){
-  select.innerHTML = '<option value="">Seleccione</option>';
-  items.forEach(v => select.innerHTML += `<option value="${v}">${v}</option>`);
 }
 
 function buildSedes(){
   sedeOptions = Object.keys(orgData || {});
-  setOptions(sedeSel, sedeOptions);
-  setOptions(depSel, []);
-  setOptions(subSel, []);
+  setOptions(sedeSel, sedeOptions, "Seleccione sede");
+  setOptions(depSel, [], "Seleccione sede");
+  setOptions(subSel, [], "Seleccione dependencia");
 }
 
-sedeSel.addEventListener("change", () => {
-  const sede = sedeSel.value;
-  depOptions = sede && orgData[sede] ? Object.keys(orgData[sede]) : [];
-  setOptions(depSel, depOptions);
-  setOptions(subSel, []);
-});
-
-depSel.addEventListener("change", () => {
-  const sede = sedeSel.value;
-  const dep = depSel.value;
-  subOptions = (sede && dep && orgData[sede] && orgData[sede][dep]) ? orgData[sede][dep] : [];
-  setOptions(subSel, subOptions);
-});
-
-/* ================= BUSCADOR INTERNO (FILTRA SELECT) ================= */
-function filterSelect(inputEl, selectEl){
-  const q = (inputEl.value || "").toLowerCase().trim();
-  const all = Array.from(selectEl.querySelectorAll("option")).map(o => o.value).filter(v => v);
-  const base = selectEl.id === "sedeSel" ? sedeOptions : (selectEl.id === "depSel" ? depOptions : subOptions);
-  const filtered = !q ? base : base.filter(x => x.toLowerCase().includes(q));
-  setOptions(selectEl, filtered);
+function filterList(base, q){
+  q = (q || "").toLowerCase().trim();
+  if(!q) return base;
+  return base.filter(x => (x || "").toLowerCase().includes(q));
 }
 
-document.getElementById("searchSede").addEventListener("input", () => filterSelect(searchSede, sedeSel));
-document.getElementById("searchDep").addEventListener("input", () => filterSelect(searchDep, depSel));
-document.getElementById("searchSub").addEventListener("input", () => filterSelect(searchSub, subSel));
+function refreshSede(){
+  setOptions(sedeSel, filterList(sedeOptions, searchSede.value), "Seleccione sede");
+  setOptions(depSel, [], "Seleccione sede");
+  setOptions(subSel, [], "Seleccione dependencia");
+}
+
+function refreshDep(){
+  setOptions(depSel, filterList(depOptions, searchDep.value), "Seleccione dependencia");
+  setOptions(subSel, [], "Seleccione dependencia");
+}
+
+function refreshSub(){
+  setOptions(subSel, filterList(subOptions, searchSub.value), "Seleccione subdependencia");
+}
+
+function ensureOrgLoaded(){
+  if(orgReady) return Promise.resolve();
+
+  const url = "{{ url_for('static', filename='data/org.json') }}";
+  return fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      orgData = data || {};
+      orgReady = true;
+      buildSedes();
+    })
+    .catch(() => {
+      orgData = {};
+      orgReady = true;
+      buildSedes();
+    });
+}
+
+/* enganchar eventos SOLO si existen */
+if(sedeSel){
+  sedeSel.addEventListener("change", () => {
+    const sede = sedeSel.value;
+    depOptions = (sede && orgData && orgData[sede]) ? Object.keys(orgData[sede]) : [];
+    searchDep.value = "";
+    searchSub.value = "";
+    setOptions(depSel, depOptions, "Seleccione dependencia");
+    setOptions(subSel, [], "Seleccione dependencia");
+  });
+}
+
+if(depSel){
+  depSel.addEventListener("change", () => {
+    const sede = sedeSel.value;
+    const dep = depSel.value;
+    subOptions = (sede && dep && orgData && orgData[sede] && orgData[sede][dep]) ? orgData[sede][dep] : [];
+    searchSub.value = "";
+    setOptions(subSel, subOptions, "Seleccione subdependencia");
+  });
+}
+
+if(searchSede) searchSede.addEventListener("input", refreshSede);
+if(searchDep)  searchDep.addEventListener("input", refreshDep);
+if(searchSub)  searchSub.addEventListener("input", refreshSub);
 
 /* ================= EDITAR USUARIO ================= */
 function editUser(data){
   openModal();
   document.getElementById("modalTitle").innerText = "Editar Usuario";
 
-  // llenar inputs simples
+  // llenar inputs y selects simples (no los de cascada)
   Object.keys(data).forEach(k => {
     const el = document.querySelector(`[name="${k}"]`);
-    if(el && el.tagName !== "SELECT"){
-      el.value = data[k] ?? "";
-    }
+    if(!el) return;
+
+    // cascada se maneja abajo
+    if(el.id === "sedeSel" || el.id === "depSel" || el.id === "subSel") return;
+
+    el.value = (data[k] ?? "");
   });
 
-  // selects: sede -> dependencia -> subdependencia
+  // cascada
   const sede = data.sede || "";
-  const dep = data.dependencia || "";
-  const sub = data.subdependencia || "";
+  const dep  = data.dependencia || "";
+  const sub  = data.subdependencia || "";
 
   // reset buscadores
-  document.getElementById("searchSede").value = "";
-  document.getElementById("searchDep").value = "";
-  document.getElementById("searchSub").value = "";
+  searchSede.value = "";
+  searchDep.value = "";
+  searchSub.value = "";
 
-  // set sede
-  buildSedes();
-  sedeSel.value = sede;
-  sedeSel.dispatchEvent(new Event("change"));
+  ensureOrgLoaded().then(() => {
+    // set sede
+    buildSedes();
+    sedeSel.value = sede;
+    sedeSel.dispatchEvent(new Event("change"));
 
-  // set dep y sub con pequeños delays para que cargue la cascada
-  setTimeout(() => {
+    // set dep
     depSel.value = dep;
     depSel.dispatchEvent(new Event("change"));
 
-    setTimeout(() => {
-      subSel.value = sub;
-    }, 120);
-  }, 120);
+    // set sub
+    subSel.value = sub;
+  });
 }
+
+/* carga org al abrir modal por primera vez (opcional) */
+ensureOrgLoaded();
 </script>
 
 {% endblock %}

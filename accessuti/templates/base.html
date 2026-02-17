@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}AccessUTI{% endblock %}</title>
+  <title>{% block title %}Access UTI{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
@@ -29,7 +29,7 @@
   </div>
 </header>
 
-<main class="container" style="padding:20px;">
+<main class="container">
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

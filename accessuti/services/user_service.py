@@ -123,13 +123,16 @@ class UserService:
     def _upsert_row(self, usuario_red: str, new_row: dict):
         rows = self.store.read_all()
         found = False
+
         for row in rows:
             if (row.get("usuario_red") or "").strip().lower() == usuario_red:
                 row.update(new_row)
                 found = True
                 break
+
         if not found:
             rows.append(new_row)
+
         self.store.write_all(rows)
         self._load_network_users()
 
@@ -174,13 +177,16 @@ class UserService:
         usuario_red = (usuario_red or "").strip().lower()
         rows = self.store.read_all()
         ok = False
+
         for row in rows:
             if (row.get("usuario_red") or "").strip().lower() == usuario_red:
                 row["status"] = "INACTIVE"
                 ok = True
                 break
+
         if not ok:
             raise ValueError("Usuario no existe.")
+
         self.store.write_all(rows)
         self._load_network_users()
         self.audit.push(audit_event(f"Desactivado usuario {usuario_red}", actor))
@@ -189,13 +195,16 @@ class UserService:
         usuario_red = (usuario_red or "").strip().lower()
         rows = self.store.read_all()
         ok = False
+
         for row in rows:
             if (row.get("usuario_red") or "").strip().lower() == usuario_red:
                 row["status"] = "ACTIVE"
                 ok = True
                 break
+
         if not ok:
             raise ValueError("Usuario no existe.")
+
         self.store.write_all(rows)
         self._load_network_users()
         self.audit.push(audit_event(f"Reactivado usuario {usuario_red}", actor))
@@ -297,15 +306,22 @@ class UserService:
         for u in self._list.to_list():
             if u.status != "ACTIVE":
                 continue
-            s = (u.sede or "SIN SEDE").strip() or "SIN SEDE"
-            counts[s] = counts.get(s, 0) + 1
-        return dict(sorted(counts.items(), key=lambda kv: kv[1], reverse=True))
+            sede = (u.sede or "SIN SEDE").strip() or "SIN SEDE"
+            counts[sede] = counts.get(sede, 0) + 1
+        return counts
 
     def count_by_contrato(self):
         counts = {}
         for u in self._list.to_list():
             if u.status != "ACTIVE":
                 continue
-            t = (u.tipo_contrato or "SIN TIPO").strip().upper() or "SIN TIPO"
+            tipo = (u.tipo_contrato or "SIN TIPO").strip().upper() or "SIN TIPO"
+            counts[tipo] = counts.get(tipo, 0) + 1
+        return counts
+
+    def count_alerts_by_tipo(self, days=15):
+        counts = {}
+        for a in self.expiring_alerts(days):
+            t = (a.get("tipo") or "OTRO").strip().upper()
             counts[t] = counts.get(t, 0) + 1
-        return dict(sorted(counts.items(), key=lambda kv: kv[1], reverse=True))
+        return counts
