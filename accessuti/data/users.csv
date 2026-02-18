@@ -1,4 +1,4 @@
 usuario_red,nombres,apellidos,dni,tipo_contrato,contrato_inicio,contrato_fin,sede,dependencia,subdependencia,acceso_nivel,acceso_redes_sociales,permiso_inicio,permiso_fin,vpn_activo,vpn_inicio,vpn_fin,permisos_activos,status
 admin,,,,,,,,,,,,,,,,,,ACTIVE
 gvivanco,Giovanni Aldair Fernando,Vivanco Zaravia,71662620,TERCERO,2026-02-09,2026-03-31,,,,NORMAL,NO,2026-02-15,2026-02-16,NO,2026-02-15,2026-02-17,SI,ACTIVE
-soporte18,manuel gerardo,gonzales,71293940,TERCERO,2026-02-15,2026-02-28,EEA Arequipa,EEA Arequipa,—,NORMAL,SI,,2026-02-19,SI,2026-02-17,2026-02-18,SI,ACTIVE
+soporte18,manuel gerardo,gonzales,71293940,TERCERO,2026-02-15,2026-02-28,EEA Arequipa,EEA Arequipa,—,NORMAL,SI,,2026-02-19,SI,2026-02-17,2026-02-18,SI,INACTIVE

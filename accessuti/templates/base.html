@@ -5,11 +5,12 @@
   <title>{% block title %}Access UTI{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <!-- CSS (cache-bust) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=1">
 </head>
 <body>
 
-<header class="topbar">
+<header class="topbar topbar--sticky">
   <div class="container topbar__inner">
     <div class="brand">
       <span class="brand__logo">UTI</span>
@@ -21,6 +22,7 @@
 
     <nav class="nav">
       {% if session.get('user') %}
+        <a class="btn ghost" href="{{ url_for('users.dashboard') }}">Dashboard</a>
         <span class="chip">{{ session.get('user').get('username') }}</span>
         <span class="chip ghost">{{ session.get('user').get('role') }}</span>
         <a class="btn danger" href="{{ url_for('auth.logout') }}">Salir</a>
@@ -29,22 +31,18 @@
   </div>
 </header>
 
-<main class="container">
-
+<main class="container main-pad">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div style="margin-bottom:15px;">
         {% for category, message in messages %}
-          <div class="alert {{ category }}" style="margin-bottom:8px;">
-            {{ message }}
-          </div>
+          <div class="alert {{ category }}">{{ message }}</div>
         {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
 
   {% block content %}{% endblock %}
-
 </main>
 
 </body>

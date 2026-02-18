@@ -1,119 +1,91 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from ..core.decorators import login_required
 from ..core.auth import current_user
-
-import io
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from time import time
 
 users_bp = Blueprint("users", __name__)
 
+# ---------------- helpers ----------------
+def _dict_to_xy(d: dict):
+    return [{"category": k, "value": v} for k, v in (d or {}).items()]
+
+def _top_n_with_others(d: dict, n=10, other_label="OTROS"):
+    items = sorted((d or {}).items(), key=lambda kv: kv[1], reverse=True)
+    top = items[:n]
+    rest = items[n:]
+    out = dict(top)
+    if rest:
+        out[other_label] = sum(v for _, v in rest)
+    return out
+
+
 # =========================
-# DASHBOARD
+# DASHBOARD + CONSULTA
 # =========================
 @users_bp.get("/")
 @login_required
 def dashboard():
     from flask import current_app
     svc = current_app.extensions["user_service"]
+    user = current_user()
 
-    q = request.args.get("q", "").strip()
+    # filtros consulta
     nombre = request.args.get("nombre", "").strip()
     sede = request.args.get("sede", "").strip()
     dependencia = request.args.get("dependencia", "").strip()
     subdependencia = request.args.get("subdependencia", "").strip()
 
-    result = svc.get_network_user(q) if q else None
+    # filtros “permisos especiales”
+    permisos_activos = request.args.get("permisos_activos", "").strip().upper()
+    vpn_activo = request.args.get("vpn_activo", "").strip().upper()
+    acceso_redes_sociales = request.args.get("acceso_redes_sociales", "").strip().upper()
+    acceso_nivel = request.args.get("acceso_nivel", "").strip().upper()
+
+    # estado / include_inactive (tal como tu HTML)
+    estado = request.args.get("estado", "").strip().upper()  # ACTIVE/INACTIVE/""
+    include_inactive = request.args.get("include_inactive", "")  # "on" si marcado
 
     filtered = svc.filter_users(
-        nombre=nombre,
-        sede=sede,
-        dependencia=dependencia,
-        subdependencia=subdependencia
-    )
-
-    return render_template(
-        "dashboard.html",
-        user=current_user(),
-        q=q,
-        result=result,
-        total=svc.total_network_users(),
-        alerts=svc.expiring_alerts(15),
-        audit=svc.audit.to_list()[:10],
-        metrics=svc.bst_metrics(),
-        filtered=filtered,
-        nombre=nombre,
-        sede=sede,
-        dependencia=dependencia,
-        subdependencia=subdependencia
-    )
-from time import time
-
-def dashboard():
-    from flask import current_app
-    svc = current_app.extensions["user_service"]
-
-    q = request.args.get("q", "").strip()
-    nombre = request.args.get("nombre", "").strip()
-    sede = request.args.get("sede", "").strip()
-    dependencia = request.args.get("dependencia", "").strip()
-    subdependencia = request.args.get("subdependencia", "").strip()
-
-    result = svc.get_network_user(q) if q else None
-
-    filtered = svc.filter_users(
-        nombre=nombre,
-        sede=sede,
-        dependencia=dependencia,
-        subdependencia=subdependencia
-    )
-
-    return render_template(
-        "dashboard.html",
-        user=current_user(),
-        q=q,
-        result=result,
-        total=svc.total_network_users(),
-        alerts=svc.expiring_alerts(15),
-        audit=svc.audit.to_list()[:10],
-        metrics=svc.bst_metrics(),
-        filtered=filtered,
         nombre=nombre,
         sede=sede,
         dependencia=dependencia,
         subdependencia=subdependencia,
-        now_ts=int(time())   # ✅ cache bust
+        permisos_activos=permisos_activos,
+        vpn_activo=vpn_activo,
+        acceso_redes_sociales=acceso_redes_sociales,
+        acceso_nivel=acceso_nivel,
+        estado=estado,
+        include_inactive=include_inactive,
     )
-@users_bp.get("/chart/alerts")
-@login_required
-def chart_alerts_by_tipo():
-    from flask import current_app
-    svc = current_app.extensions["user_service"]
 
-    data = svc.count_alerts_by_tipo(15)
-    if not data:
-        data = {"Sin alertas": 1}
+    return render_template(
+        "dashboard.html",
+        user=user,
 
-    labels = list(data.keys())
-    values = list(data.values())
+        total=svc.total_network_users(),
+        total_filtrados=len(filtered),
+        alerts=svc.expiring_alerts(15),
+        metrics=svc.bst_metrics(),
+        filtered=filtered,
 
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(labels, values)
-    ax.set_title("Alertas por tipo (próximos 15 días)")
-    ax.set_ylabel("Cantidad")
-    ax.set_xlabel("Tipo")
-    plt.xticks(rotation=0)
-    plt.tight_layout()
+        # persistencia filtros
+        nombre=nombre,
+        sede=sede,
+        dependencia=dependencia,
+        subdependencia=subdependencia,
+        permisos_activos=permisos_activos,
+        vpn_activo=vpn_activo,
+        acceso_redes_sociales=acceso_redes_sociales,
+        acceso_nivel=acceso_nivel,
+        estado=estado,
+        include_inactive=include_inactive,
 
-    img = io.BytesIO()
-    plt.savefig(img, format="png")
-    img.seek(0)
-    plt.close(fig)
+        now_ts=int(time()),  # cache-bust para assets/requests si lo necesitas
+    )
 
-    return Response(img.getvalue(), mimetype="image/png")
+
 # =========================
-# REGISTRO / UPDATE
+# REGISTRO / UPDATE (solo ADMIN)
 # =========================
 @users_bp.post("/register")
 @login_required
@@ -121,7 +93,12 @@ def register_network_user():
     from flask import current_app
     svc = current_app.extensions["user_service"]
 
-    actor = current_user().get("username", "admin")
+    u = current_user()
+    if u.get("role") != "ADMIN":
+        flash("No tienes permisos para registrar/editar usuarios.", "danger")
+        return redirect(url_for("users.dashboard"))
+
+    actor = u.get("username", "admin")
 
     try:
         svc.register_network_user(dict(request.form), actor=actor)
@@ -131,21 +108,19 @@ def register_network_user():
 
     return redirect(url_for("users.dashboard"))
 
-# =========================
-# DESACTIVAR
-# =========================
+
 @users_bp.post("/user/deactivate")
 @login_required
 def user_deactivate():
     from flask import current_app
     svc = current_app.extensions["user_service"]
 
-    user = current_user()
-    if user.get("role") != "ADMIN":
+    u = current_user()
+    if u.get("role") != "ADMIN":
         flash("No tienes permisos.", "danger")
         return redirect(url_for("users.dashboard"))
 
-    actor = user.get("username", "admin")
+    actor = u.get("username", "admin")
     usuario_red = request.form.get("usuario_red", "")
 
     try:
@@ -156,21 +131,19 @@ def user_deactivate():
 
     return redirect(url_for("users.dashboard"))
 
-# =========================
-# REACTIVAR
-# =========================
+
 @users_bp.post("/user/activate")
 @login_required
 def user_activate():
     from flask import current_app
     svc = current_app.extensions["user_service"]
 
-    user = current_user()
-    if user.get("role") != "ADMIN":
+    u = current_user()
+    if u.get("role") != "ADMIN":
         flash("No tienes permisos.", "danger")
         return redirect(url_for("users.dashboard"))
 
-    actor = user.get("username", "admin")
+    actor = u.get("username", "admin")
     usuario_red = request.form.get("usuario_red", "")
 
     try:
@@ -181,21 +154,19 @@ def user_activate():
 
     return redirect(url_for("users.dashboard"))
 
-# =========================
-# APAGAR PERMISOS
-# =========================
+
 @users_bp.post("/user/perms_off")
 @login_required
 def user_perms_off():
     from flask import current_app
     svc = current_app.extensions["user_service"]
 
-    user = current_user()
-    if user.get("role") != "ADMIN":
+    u = current_user()
+    if u.get("role") != "ADMIN":
         flash("No tienes permisos.", "danger")
         return redirect(url_for("users.dashboard"))
 
-    actor = user.get("username", "admin")
+    actor = u.get("username", "admin")
     usuario_red = request.form.get("usuario_red", "")
 
     try:
@@ -206,65 +177,64 @@ def user_perms_off():
 
     return redirect(url_for("users.dashboard"))
 
+
 # =========================
-# CHART: SEDE
+# API CHARTS (JSON)
 # =========================
-@users_bp.get("/chart/sede")
+@users_bp.get("/api/charts/sede")
 @login_required
-def chart_users_by_sede():
+def api_chart_sede():
     from flask import current_app
     svc = current_app.extensions["user_service"]
+    return jsonify(_dict_to_xy(svc.count_by_sede()))
 
-    data = svc.count_by_sede()
-
-    if not data:
-        data = {"Sin datos": 1}
-
-    labels = list(data.keys())
-    values = list(data.values())
-
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(labels, values)
-    ax.set_title("Usuarios activos por sede")
-    ax.set_ylabel("Cantidad")
-    ax.set_xlabel("Sede")
-    plt.xticks(rotation=35, ha="right")
-    plt.tight_layout()
-
-    img = io.BytesIO()
-    plt.savefig(img, format="png")
-    img.seek(0)
-    plt.close(fig)
-
-    return Response(img.getvalue(), mimetype="image/png")
-
-# =========================
-# CHART: TIPO CONTRATO
-# =========================
-@users_bp.get("/chart/contrato")
+@users_bp.get("/api/charts/contrato")
 @login_required
-def chart_users_by_contrato():
+def api_chart_contrato():
     from flask import current_app
     svc = current_app.extensions["user_service"]
+    return jsonify(_dict_to_xy(svc.count_by_contrato()))
 
-    data = svc.count_by_contrato()
+@users_bp.get("/api/charts/dependencia")
+@login_required
+def api_chart_dependencia():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+    d = _top_n_with_others(svc.count_by_dependencia(), n=10, other_label="OTROS")
+    return jsonify(_dict_to_xy(d))
 
-    if not data:
-        data = {"Sin datos": 1}
+@users_bp.get("/api/charts/subdependencia")
+@login_required
+def api_chart_subdependencia():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+    d = _top_n_with_others(svc.count_by_subdependencia(), n=10, other_label="OTROS")
+    return jsonify(_dict_to_xy(d))
 
-    labels = list(data.keys())
-    values = list(data.values())
+@users_bp.get("/api/charts/permisos")
+@login_required
+def api_chart_permisos():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+    return jsonify(_dict_to_xy(svc.count_permisos_activos()))
 
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(labels, values)
-    ax.set_title("Usuarios activos por tipo de contrato")
-    ax.set_ylabel("Cantidad")
-    ax.set_xlabel("Tipo")
-    plt.tight_layout()
+@users_bp.get("/api/charts/vpn")
+@login_required
+def api_chart_vpn():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+    return jsonify(_dict_to_xy(svc.count_vpn_activo()))
 
-    img = io.BytesIO()
-    plt.savefig(img, format="png")
-    img.seek(0)
-    plt.close(fig)
+@users_bp.get("/api/charts/redes")
+@login_required
+def api_chart_redes():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+    return jsonify(_dict_to_xy(svc.count_acceso_redes_sociales()))
 
-    return Response(img.getvalue(), mimetype="image/png")
+@users_bp.get("/api/charts/nivel")
+@login_required
+def api_chart_nivel():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+    return jsonify(_dict_to_xy(svc.count_acceso_nivel()))
