@@ -7,7 +7,7 @@
 <div class="page-head">
   <div>
     <h2 class="h2">AccessUTI</h2>
-    <div class="muted">Gestión integral de usuarios de red (consulta + tablero)</div>
+    <div class="muted">Gestión integral de usuarios de red </div>
   </div>
 
   {% if user.role == "ADMIN" %}
@@ -25,7 +25,7 @@
   <div class="card-head">
     <div>
       <h3 style="margin:0;">🔎 Consulta</h3>
-      <div class="muted">Busca usuarios y filtra por sede / dependencia / estado + permisos especiales</div>
+      <div class="muted">Busca usuarios y filtros</div>
     </div>
   </div>
 
@@ -37,17 +37,23 @@
 
     <div>
       <label class="label">Sede</label>
-      <input class="input" name="sede" value="{{ sede }}" placeholder="Ej: Sede Central">
+      <select class="input" name="sede" id="q_sede">
+        <option value="">Todas</option>
+      </select>
     </div>
 
     <div>
       <label class="label">Dependencia</label>
-      <input class="input" name="dependencia" value="{{ dependencia }}" placeholder="Ej: Gerencia General">
+      <select class="input" name="dependencia" id="q_dependencia">
+        <option value="">Todas</option>
+      </select>
     </div>
 
     <div>
       <label class="label">Subdependencia</label>
-      <input class="input" name="subdependencia" value="{{ subdependencia }}" placeholder="Ej: Unidad de Tecnologia de la Informacion">
+      <select class="input" name="subdependencia" id="q_subdependencia">
+        <option value="">Todas</option>
+      </select>
     </div>
 
     <div>
@@ -268,7 +274,7 @@
   <div class="card-head dash__head">
     <div>
       <h3 style="margin:0;">📊 Dashboard</h3>
-      <div class="muted">KPIs y gráficos (visión general) — datos de usuarios ACTIVOS</div>
+      <div class="muted">Datos de Usuarios ACTIVOS</div>
     </div>
   </div>
 
@@ -360,7 +366,7 @@
       </div>
       <div>
         <label class="label">IP</label>
-        <input class="input" name="ip_equipo" id="ip_equipo" placeholder="192.168.1.10">
+        <input class="input" name="ip_equipo" id="ip_equipo" placeholder="172.16.40.10">
       </div>
       <div>
         <label class="label">Host</label>
@@ -390,7 +396,7 @@
 
       <div style="grid-column:1/-1;">
         <h4 style="margin:6px 0;">Ubicación</h4>
-        <div class="muted" style="font-size:12px;">Combos desde <b>static/data/org.json</b></div>
+        <div class="muted" style="font-size:12px;">Organizacion INIA</div>
       </div>
 
       <div>
@@ -464,7 +470,7 @@
       </div>
 
       <div>
-        <label class="label">Antivirus (solo si VPN=SI y Equipo personal=SI)</label>
+        <label class="label">Antivirus</label>
         <input class="input" name="antivirus" id="antivirus" placeholder="Ej: ESET / Defender / Kaspersky">
       </div>
       <div>
@@ -490,6 +496,8 @@
 {% endblock %}
 
 {% block scripts %}
+
+
   <!-- amCharts 5 -->
   <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
   <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
@@ -510,7 +518,16 @@
       }
     };
   </script>
+  <script>
+    // Persistencia desde backend (ya lo tienes)
+    window.ACCESSUTI_QUERY_DEFAULTS = {
+      sede: "{{ sede|e }}",
+      dependencia: "{{ dependencia|e }}",
+      subdependencia: "{{ subdependencia|e }}"
+    };
+  </script>
 
+  <script src="{{ url_for('static', filename='js/org-query.js') }}?v={{ now_ts }}"></script>
   <script src="{{ url_for('static', filename='js/org-combos.js') }}?v={{ now_ts }}"></script>
   <script src="{{ url_for('static', filename='js/modal.js') }}?v={{ now_ts }}"></script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ now_ts }}"></script>
