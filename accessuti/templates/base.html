@@ -5,8 +5,8 @@
   <title>{% block title %}Access UTI{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- CSS (cache-bust) -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=1">
+  <!-- CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=1">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
 
     <nav class="nav">
       {% if session.get('user') %}
-        <a class="btn ghost" href="{{ url_for('users.dashboard') }}">Dashboard</a>
+        <a class="btn ghost" href="{{ url_for('users.dashboard') }}#dashboard">Dashboard</a>
         <span class="chip">{{ session.get('user').get('username') }}</span>
         <span class="chip ghost">{{ session.get('user').get('role') }}</span>
         <a class="btn danger" href="{{ url_for('auth.logout') }}">Salir</a>
@@ -45,5 +45,6 @@
   {% block content %}{% endblock %}
 </main>
 
+{% block scripts %}{% endblock %}
 </body>
 </html>

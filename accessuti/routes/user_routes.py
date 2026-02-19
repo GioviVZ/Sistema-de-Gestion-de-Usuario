@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from ..core.decorators import login_required
 from ..core.auth import current_user
 from time import time
+import os
 
 users_bp = Blueprint("users", __name__)
 
@@ -17,6 +18,9 @@ def _top_n_with_others(d: dict, n=10, other_label="OTROS"):
     if rest:
         out[other_label] = sum(v for _, v in rest)
     return out
+
+def _client_ip():
+    return request.headers.get("X-Forwarded-For", request.remote_addr) or "-"
 
 
 # =========================
@@ -41,7 +45,7 @@ def dashboard():
     acceso_redes_sociales = request.args.get("acceso_redes_sociales", "").strip().upper()
     acceso_nivel = request.args.get("acceso_nivel", "").strip().upper()
 
-    # estado / include_inactive (tal como tu HTML)
+    # estado / include_inactive
     estado = request.args.get("estado", "").strip().upper()  # ACTIVE/INACTIVE/""
     include_inactive = request.args.get("include_inactive", "")  # "on" si marcado
 
@@ -61,12 +65,12 @@ def dashboard():
     return render_template(
         "dashboard.html",
         user=user,
-
         total=svc.total_network_users(),
         total_filtrados=len(filtered),
         alerts=svc.expiring_alerts(15),
         metrics=svc.bst_metrics(),
         filtered=filtered,
+        audit_events=svc.last_audit_events(12),
 
         # persistencia filtros
         nombre=nombre,
@@ -80,7 +84,7 @@ def dashboard():
         estado=estado,
         include_inactive=include_inactive,
 
-        now_ts=int(time()),  # cache-bust para assets/requests si lo necesitas
+        now_ts=int(time()),
     )
 
 
@@ -99,9 +103,10 @@ def register_network_user():
         return redirect(url_for("users.dashboard"))
 
     actor = u.get("username", "admin")
+    ip = _client_ip()
 
     try:
-        svc.register_network_user(dict(request.form), actor=actor)
+        svc.register_network_user(dict(request.form), actor=actor, ip=ip)
         flash("Usuario registrado/actualizado correctamente.", "success")
     except Exception as e:
         flash(str(e), "danger")
@@ -121,10 +126,11 @@ def user_deactivate():
         return redirect(url_for("users.dashboard"))
 
     actor = u.get("username", "admin")
+    ip = _client_ip()
     usuario_red = request.form.get("usuario_red", "")
 
     try:
-        svc.deactivate_user(usuario_red, actor=actor)
+        svc.deactivate_user(usuario_red, actor=actor, ip=ip)
         flash("Usuario desactivado.", "info")
     except Exception as e:
         flash(str(e), "danger")
@@ -144,10 +150,11 @@ def user_activate():
         return redirect(url_for("users.dashboard"))
 
     actor = u.get("username", "admin")
+    ip = _client_ip()
     usuario_red = request.form.get("usuario_red", "")
 
     try:
-        svc.activate_user(usuario_red, actor=actor)
+        svc.activate_user(usuario_red, actor=actor, ip=ip)
         flash("Usuario reactivado.", "success")
     except Exception as e:
         flash(str(e), "danger")
@@ -167,15 +174,41 @@ def user_perms_off():
         return redirect(url_for("users.dashboard"))
 
     actor = u.get("username", "admin")
+    ip = _client_ip()
     usuario_red = request.form.get("usuario_red", "")
 
     try:
-        svc.deactivate_special_permissions(usuario_red, actor=actor)
+        svc.deactivate_special_permissions(usuario_red, actor=actor, ip=ip)
         flash("Permisos especiales apagados.", "info")
     except Exception as e:
         flash(str(e), "danger")
 
     return redirect(url_for("users.dashboard"))
+
+
+# =========================
+# EXPORT CSV (solo ADMIN)
+# =========================
+@users_bp.get("/admin/export/users")
+@login_required
+def export_users():
+    from flask import current_app
+    svc = current_app.extensions["user_service"]
+
+    u = current_user()
+    if u.get("role") != "ADMIN":
+        flash("No tienes permisos.", "danger")
+        return redirect(url_for("users.dashboard"))
+
+    actor = u.get("username", "admin")
+    ip = _client_ip()
+
+    try:
+        export_path = svc.export_users_csv(actor=actor, ip=ip)
+        return send_file(export_path, as_attachment=True, download_name=os.path.basename(export_path))
+    except Exception as e:
+        flash(str(e), "danger")
+        return redirect(url_for("users.dashboard"))
 
 
 # =========================

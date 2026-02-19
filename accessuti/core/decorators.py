@@ -5,7 +5,8 @@ from .auth import current_user
 def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if not current_user():
+        u = current_user()
+        if not u:
             flash("Inicia sesión.", "warning")
             return redirect(url_for("auth.login"))
         return fn(*args, **kwargs)

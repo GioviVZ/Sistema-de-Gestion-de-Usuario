@@ -11,8 +11,11 @@
   </div>
 
   {% if user.role == "ADMIN" %}
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="btn ghost" href="{{ url_for('users.export_users') }}">⬇ Exportar CSV</a>
     <button class="btn" type="button" onclick="openModal('create')">+ Registrar Usuario</button>
-  {% endif %}
+  </div>
+{% endif %}
 </div>
 
 <!-- =========================================================
@@ -34,17 +37,17 @@
 
     <div>
       <label class="label">Sede</label>
-      <input class="input" name="sede" value="{{ sede }}" placeholder="Ej: Lima">
+      <input class="input" name="sede" value="{{ sede }}" placeholder="Ej: Sede Central">
     </div>
 
     <div>
       <label class="label">Dependencia</label>
-      <input class="input" name="dependencia" value="{{ dependencia }}" placeholder="Ej: UTI">
+      <input class="input" name="dependencia" value="{{ dependencia }}" placeholder="Ej: Gerencia General">
     </div>
 
     <div>
       <label class="label">Subdependencia</label>
-      <input class="input" name="subdependencia" value="{{ subdependencia }}" placeholder="Ej: Mesa de Ayuda">
+      <input class="input" name="subdependencia" value="{{ subdependencia }}" placeholder="Ej: Unidad de Tecnologia de la Informacion">
     </div>
 
     <div>
@@ -131,24 +134,6 @@
               <span class="badge badge-bad">INACTIVO</span>
             {% endif %}
 
-            {% if (u.vpn_activo or "")|upper == "SI" %}
-              <span class="chip">VPN: SI</span>
-            {% else %}
-              <span class="chip ghost">VPN: NO</span>
-            {% endif %}
-
-            {% if (u.permisos_activos or "")|upper == "SI" %}
-              <span class="chip">Permisos: SI</span>
-            {% else %}
-              <span class="chip ghost">Permisos: NO</span>
-            {% endif %}
-
-            {% if (u.acceso_redes_sociales or "")|upper == "SI" %}
-              <span class="chip">Redes: SI</span>
-            {% else %}
-              <span class="chip ghost">Redes: NO</span>
-            {% endif %}
-
             <span class="chip ghost">Nivel: {{ (u.acceso_nivel or "NORMAL")|upper }}</span>
           </div>
 
@@ -193,10 +178,92 @@
     <div class="muted" style="margin-top:10px;">No hay resultados con esos filtros.</div>
   {% endif %}
 </div>
+{% if user.role == "ADMIN" %}
+  <a class="btn ghost" href="{{ url_for('users.export_users') }}">⬇ Exportar CSV</a>
+{% endif %}
 
-<!-- =========================================================
-     SECCIÓN 2: DASHBOARD (abajo) - amCharts
-========================================================= -->
+<!-- ================= ALERTAS ================= -->
+<div class="card" style="margin-top:16px;">
+  <div class="card-head">
+    <div>
+      <h3 style="margin:0;">⏰ Alertas de vencimiento (15 días)</h3>
+      <div class="muted">Contrato / Permisos / VPN / Antivirus (si aplica)</div>
+    </div>
+    <div class="muted" style="font-size:13px;">
+      Total: <b>{{ alerts|length }}</b>
+    </div>
+  </div>
+
+  {% if alerts and alerts|length > 0 %}
+    {% for a in alerts %}
+      <div class="rowline">
+        <div>
+          <div class="rowtitle">
+            <b>{{ a.u.usuario_red }}</b>
+            <span class="chip ghost">{{ a.tipo }}</span>
+            {% if a.dias < 0 %}
+              <span class="badge badge-bad">VENCIDO</span>
+            {% else %}
+              <span class="badge badge-ok">Faltan {{ a.dias }} día(s)</span>
+            {% endif %}
+          </div>
+
+          <div class="muted" style="margin-top:6px;">
+            {{ a.u.nombres }} {{ a.u.apellidos }} — {{ a.u.sede }} / {{ a.u.dependencia }}
+          </div>
+
+          <div class="muted" style="margin-top:6px; font-size:13px;">
+            Vence: <b>{{ a.vence }}</b>
+            {% if a.tipo == "ANTIVIRUS" %}
+              | Equipo personal: <b>{{ a.u.equipo_personal or "NO" }}</b>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="muted" style="margin-top:10px;">Sin alertas próximas.</div>
+  {% endif %}
+</div>
+
+<!-- ================= AUDITORÍA ================= -->
+<div class="card" style="margin-top:16px;">
+  <div class="card-head">
+    <div>
+      <h3 style="margin:0;">🧾 Auditoría (últimos movimientos)</h3>
+      <div class="muted">Registro reciente de acciones administrativas</div>
+    </div>
+    <div class="muted" style="font-size:13px;">
+      Total: <b>{{ audit_events|length }}</b>
+    </div>
+  </div>
+
+  {% if audit_events and audit_events|length > 0 %}
+    {% for ev in audit_events %}
+      <div class="rowline">
+        <div>
+          <div class="rowtitle">
+            <span class="chip ghost">👤 {{ ev.actor }}</span>
+            <span class="badge badge-ok">Acción</span>
+          </div>
+
+          <div style="margin-top:6px;">
+            {{ ev.action }}
+          </div>
+
+          <div class="muted" style="margin-top:6px; font-size:13px;">
+            🕒 {{ ev.ts }}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="muted" style="margin-top:10px;">Aún no hay eventos registrados.</div>
+  {% endif %}
+</div>
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboard" class="card dash" style="margin-top:18px;">
+
 <div class="card dash" style="margin-top:18px;">
   <div class="card-head dash__head">
     <div>
@@ -205,7 +272,6 @@
     </div>
   </div>
 
-  <!-- KPIs -->
   <div class="dash__kpis">
     <div class="kpiCard">
       <div class="kpi-label">Total usuarios activos</div>
@@ -229,61 +295,37 @@
     </div>
   </div>
 
-  <!-- Charts -->
   <div class="dash__grid">
     <div class="dashCard">
-  <div class="dashCard__head">
-    <h4 class="dashTitle">Usuarios activos por sede</h4>
-  </div>
-  <div class="chartBox">
-    <div id="chartSede" class="chart"></div>
-  </div>
-</div>
+      <div class="dashCard__head"><h4 class="dashTitle">Usuarios activos por sede</h4></div>
+      <div class="chartBox"><div id="chartSede" class="chart"></div></div>
+    </div>
 
-<div class="dashCard">
-  <div class="dashCard__head">
-    <h4 class="dashTitle">Usuarios por tipo contrato</h4>
-  </div>
-  <div class="chartBox">
-    <div id="chartContrato" class="chart"></div>
-  </div>
-</div>
+    <div class="dashCard">
+      <div class="dashCard__head"><h4 class="dashTitle">Usuarios por tipo contrato</h4></div>
+      <div class="chartBox"><div id="chartContrato" class="chart"></div></div>
+    </div>
 
-<div class="dashCard">
-  <div class="dashCard__head">
-    <h4 class="dashTitle">Permisos activos</h4>
-  </div>
-  <div class="chartBox">
-    <div id="chartPermisos" class="chart"></div>
-  </div>
-</div>
+    <div class="dashCard">
+      <div class="dashCard__head"><h4 class="dashTitle">Permisos activos</h4></div>
+      <div class="chartBox"><div id="chartPermisos" class="chart"></div></div>
+    </div>
 
-<div class="dashCard">
-  <div class="dashCard__head">
-    <h4 class="dashTitle">VPN activo</h4>
-  </div>
-  <div class="chartBox">
-    <div id="chartVPN" class="chart"></div>
-  </div>
-</div>
+    <div class="dashCard">
+      <div class="dashCard__head"><h4 class="dashTitle">VPN activo</h4></div>
+      <div class="chartBox"><div id="chartVPN" class="chart"></div></div>
+    </div>
 
-<div class="dashCard spanAll">
-  <div class="dashCard__head">
-    <h4 class="dashTitle">Top dependencias (Top 10 + Otros)</h4>
-  </div>
-  <div class="chartBox tall">
-    <div id="chartDep" class="chartTall"></div>
-  </div>
-</div>
+    <div class="dashCard spanAll">
+      <div class="dashCard__head"><h4 class="dashTitle">Top dependencias (Top 10 + Otros)</h4></div>
+      <div class="chartBox tall"><div id="chartDep" class="chartTall"></div></div>
+    </div>
 
-<div class="dashCard spanAll">
-  <div class="dashCard__head">
-    <h4 class="dashTitle">Top subdependencias (Top 10 + Otros)</h4>
+    <div class="dashCard spanAll">
+      <div class="dashCard__head"><h4 class="dashTitle">Top subdependencias (Top 10 + Otros)</h4></div>
+      <div class="chartBox tall"><div id="chartSub" class="chartTall"></div></div>
+    </div>
   </div>
-  <div class="chartBox tall">
-    <div id="chartSub" class="chartTall"></div>
-  </div>
-</div>
 </div>
 
 <!-- ================= MODAL (CREATE/EDIT/VIEW) ================= -->
@@ -294,9 +336,7 @@
     <h3 id="modalTitle" style="margin-top:0;">Registrar Usuario</h3>
 
     <form method="post" action="{{ url_for('users.register_network_user') }}" class="grid2" id="userForm">
-      <div style="grid-column:1/-1;">
-        <h4 style="margin:6px 0;">Datos personales</h4>
-      </div>
+      <div style="grid-column:1/-1;"><h4 style="margin:6px 0;">Datos personales</h4></div>
 
       <div>
         <label class="label">Usuario red</label>
@@ -314,10 +354,20 @@
         <label class="label">Apellidos</label>
         <input class="input" name="apellidos" id="apellidos">
       </div>
-
-      <div style="grid-column:1/-1;">
-        <h4 style="margin:6px 0;">Contrato</h4>
+      <div>
+        <label class="label">Correo</label>
+        <input class="input" name="correo" id="correo" placeholder="usuario@inia.gob.pe">
       </div>
+      <div>
+        <label class="label">IP</label>
+        <input class="input" name="ip_equipo" id="ip_equipo" placeholder="192.168.1.10">
+      </div>
+      <div>
+        <label class="label">Host</label>
+        <input class="input" name="host" id="host" placeholder="PC-UTI-001">
+      </div>
+
+      <div style="grid-column:1/-1;"><h4 style="margin:6px 0;">Contrato</h4></div>
 
       <div>
         <label class="label">Tipo contrato</label>
@@ -326,6 +376,7 @@
           <option value="CAS">CAS</option>
           <option value="CAP">CAP</option>
           <option value="TERCERO">TERCERO</option>
+          <option value="PRACTICANTE">PRACTICANTE</option>
         </select>
       </div>
       <div>
@@ -339,24 +390,29 @@
 
       <div style="grid-column:1/-1;">
         <h4 style="margin:6px 0;">Ubicación</h4>
+        <div class="muted" style="font-size:12px;">Combos desde <b>static/data/org.json</b></div>
       </div>
 
       <div>
         <label class="label">Sede</label>
-        <input class="input" name="sede" id="sede">
+        <select class="input" name="sede" id="sede">
+          <option value="">Cargando sedes...</option>
+        </select>
       </div>
       <div>
         <label class="label">Dependencia</label>
-        <input class="input" name="dependencia" id="dependencia">
+        <select class="input" name="dependencia" id="dependencia">
+          <option value="">Seleccione sede primero</option>
+        </select>
       </div>
       <div>
         <label class="label">Subdependencia</label>
-        <input class="input" name="subdependencia" id="subdependencia">
+        <select class="input" name="subdependencia" id="subdependencia">
+          <option value="">Seleccione dependencia primero</option>
+        </select>
       </div>
 
-      <div style="grid-column:1/-1;">
-        <h4 style="margin:6px 0;">Permisos</h4>
-      </div>
+      <div style="grid-column:1/-1;"><h4 style="margin:6px 0;">Permisos</h4></div>
 
       <div>
         <label class="label">Nivel de acceso</label>
@@ -365,12 +421,19 @@
           <option value="ADMINISTRADOR">ADMINISTRADOR</option>
         </select>
       </div>
-
       <div>
         <label class="label">Acceso redes sociales</label>
         <select class="input" name="acceso_redes_sociales" id="acceso_redes_sociales">
           <option value="NO">NO</option>
           <option value="SI">SI</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label">Permisos activos</label>
+        <select class="input" name="permisos_activos" id="permisos_activos">
+          <option value="SI">SI</option>
+          <option value="NO">NO</option>
         </select>
       </div>
 
@@ -383,9 +446,7 @@
         <input class="input" type="date" name="permiso_fin" id="permiso_fin">
       </div>
 
-      <div style="grid-column:1/-1;">
-        <h4 style="margin:6px 0;">VPN</h4>
-      </div>
+      <div style="grid-column:1/-1;"><h4 style="margin:6px 0;">VPN</h4></div>
 
       <div>
         <label class="label">VPN activo</label>
@@ -393,6 +454,22 @@
           <option value="NO">NO</option>
           <option value="SI">SI</option>
         </select>
+      </div>
+      <div>
+        <label class="label">Equipo personal</label>
+        <select class="input" name="equipo_personal" id="equipo_personal">
+          <option value="NO">NO</option>
+          <option value="SI">SI</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label">Antivirus (solo si VPN=SI y Equipo personal=SI)</label>
+        <input class="input" name="antivirus" id="antivirus" placeholder="Ej: ESET / Defender / Kaspersky">
+      </div>
+      <div>
+        <label class="label">Fin Antivirus</label>
+        <input class="input" type="date" name="antivirus_fin" id="antivirus_fin">
       </div>
       <div>
         <label class="label">VPN inicio</label>
@@ -410,296 +487,31 @@
   </div>
 </div>
 
-<!-- amCharts 5 -->
-<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
-<script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
-<script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
-<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+{% endblock %}
 
-<script>
-function openModal(mode){
-  document.getElementById("modal").style.display = "block";
-  const title = document.getElementById("modalTitle");
-  const saveBtn = document.getElementById("saveBtn");
-  const form = document.getElementById("userForm");
+{% block scripts %}
+  <!-- amCharts 5 -->
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
-  if(mode === "view"){
-    title.innerText = "Ver usuario";
-    saveBtn.style.display = "none";
-    form.querySelectorAll("input,select").forEach(el => el.disabled = true);
-  } else {
-    title.innerText = mode === "edit" ? "Editar usuario" : "Registrar usuario";
-    saveBtn.style.display = "block";
-    form.querySelectorAll("input,select").forEach(el => el.disabled = false);
-    document.getElementById("usuario_red").readOnly = (mode === "edit");
-  }
-}
+  <!-- Vars para JS -->
+  <script>
+    window.ACCESSUTI = {
+      orgUrl: "{{ url_for('static', filename='data/org.json') }}?v={{ now_ts }}",
+      endpoints: {
+        sede: "{{ url_for('users.api_chart_sede') }}?v={{ now_ts }}",
+        contrato: "{{ url_for('users.api_chart_contrato') }}?v={{ now_ts }}",
+        permisos: "{{ url_for('users.api_chart_permisos') }}?v={{ now_ts }}",
+        vpn: "{{ url_for('users.api_chart_vpn') }}?v={{ now_ts }}",
+        dep: "{{ url_for('users.api_chart_dependencia') }}?v={{ now_ts }}",
+        sub: "{{ url_for('users.api_chart_subdependencia') }}?v={{ now_ts }}"
+      }
+    };
+  </script>
 
-function closeModal(){
-  document.getElementById("modal").style.display = "none";
-  const form = document.getElementById("userForm");
-  form.reset();
-  form.querySelectorAll("input,select").forEach(el => el.disabled = false);
-  document.getElementById("saveBtn").style.display = "block";
-  document.getElementById("usuario_red").readOnly = false;
-}
-
-function fillForm(data){
-  const map = [
-    "usuario_red","dni","nombres","apellidos",
-    "tipo_contrato","contrato_inicio","contrato_fin",
-    "sede","dependencia","subdependencia",
-    "acceso_nivel","acceso_redes_sociales",
-    "permiso_inicio","permiso_fin",
-    "vpn_activo","vpn_inicio","vpn_fin"
-  ];
-
-  map.forEach(k => {
-    const el = document.getElementById(k);
-    if(!el) return;
-    el.value = (data[k] ?? "");
-  });
-}
-
-function editUser(data){
-  openModal("edit");
-  fillForm(data);
-}
-
-function viewUser(data){
-  openModal("view");
-  fillForm(data);
-}
-
-async function fetchData(url){
-  const res = await fetch(url, { headers: { "Accept": "application/json" }});
-  return await res.json();
-}
-
-/* ======= XY Column Chart (ENTEROS + rango limpio) ======= */
-function renderXYColumn(divId, data){
-  const root = am5.Root.new(divId);
-  root.setThemes([am5themes_Animated.new(root)]);
-
-  // Formato global (enteros)
-  root.numberFormatter.setAll({ numberFormat: "#,###" });
-
-  const chart = root.container.children.push(
-    am5xy.XYChart.new(root, {
-      panX: true, panY: false,
-      wheelX: "panX", wheelY: "zoomX",
-      paddingLeft: 10, paddingRight: 10,
-      paddingTop: 10, paddingBottom: 10
-    })
-  );
-
-  const xRenderer = am5xy.AxisRendererX.new(root, { minGridDistance: 28 });
-  xRenderer.labels.template.setAll({
-    oversizedBehavior: "wrap",
-    maxWidth: 120,
-    textAlign: "center"
-  });
-
-  const xAxis = chart.xAxes.push(
-    am5xy.CategoryAxis.new(root, {
-      categoryField: "category",
-      renderer: xRenderer
-    })
-  );
-
-  const yRenderer = am5xy.AxisRendererY.new(root, {});
-  const yAxis = chart.yAxes.push(
-    am5xy.ValueAxis.new(root, {
-      renderer: yRenderer,
-      min: 0,
-      strictMinMax: true
-    })
-  );
-
-  // ✅ fuerza etiquetas enteras
-  yRenderer.labels.template.setAll({
-    text: "{value.formatNumber('#,###')}"
-  });
-
-  const series = chart.series.push(
-    am5xy.ColumnSeries.new(root, {
-      xAxis, yAxis,
-      valueYField: "value",
-      categoryXField: "category",
-      tooltip: am5.Tooltip.new(root, {
-        labelText: "{categoryX}: {valueY.formatNumber('#,###')}"
-      })
-    })
-  );
-
-  series.columns.template.setAll({
-    cornerRadiusTL: 10,
-    cornerRadiusTR: 10
-  });
-
-  xAxis.data.setAll(data);
-  series.data.setAll(data);
-
-  // ✅ max entero (evita 1.85–2.15)
-  const maxVal = Math.max(...data.map(d => Number(d.value || 0)), 0);
-  yAxis.setAll({
-    max: Math.max(1, Math.ceil(maxVal)),
-    extraMax: 0
-  });
-
-  series.appear(900);
-  chart.appear(900, 100);
-}
-
-
-/* ======= Horizontal Bar (ENTEROS + rango limpio) ======= */
-function renderXYBar(divId, data){
-  const root = am5.Root.new(divId);
-  root.setThemes([am5themes_Animated.new(root)]);
-
-  root.numberFormatter.setAll({ numberFormat: "#,###" });
-
-  const chart = root.container.children.push(
-    am5xy.XYChart.new(root, {
-      panY: true,
-      wheelY: "panY",
-      paddingLeft: 12, paddingRight: 12,
-      paddingTop: 10, paddingBottom: 10
-    })
-  );
-
-  const yRenderer = am5xy.AxisRendererY.new(root, { inversed: true });
-  yRenderer.labels.template.setAll({
-    oversizedBehavior: "wrap",
-    maxWidth: 240
-  });
-
-  const yAxis = chart.yAxes.push(
-    am5xy.CategoryAxis.new(root, {
-      categoryField: "category",
-      renderer: yRenderer
-    })
-  );
-
-  const xRenderer = am5xy.AxisRendererX.new(root, {});
-  const xAxis = chart.xAxes.push(
-    am5xy.ValueAxis.new(root, {
-      renderer: xRenderer,
-      min: 0,
-      strictMinMax: true
-    })
-  );
-
-  // ✅ enteros
-  xRenderer.labels.template.setAll({
-    text: "{value.formatNumber('#,###')}"
-  });
-
-  const series = chart.series.push(
-    am5xy.ColumnSeries.new(root, {
-      xAxis, yAxis,
-      valueXField: "value",
-      categoryYField: "category",
-      tooltip: am5.Tooltip.new(root, {
-        labelText: "{categoryY}: {valueX.formatNumber('#,###')}"
-      })
-    })
-  );
-
-  series.columns.template.setAll({
-    cornerRadiusTR: 10,
-    cornerRadiusBR: 10
-  });
-
-  yAxis.data.setAll(data);
-  series.data.setAll(data);
-
-  const maxVal = Math.max(...data.map(d => Number(d.value || 0)), 0);
-  xAxis.setAll({
-    max: Math.max(1, Math.ceil(maxVal)),
-    extraMax: 0
-  });
-
-  series.appear(900);
-  chart.appear(900, 100);
-}
-
-
-/* ======= Donut (CENTRADO + SIN CORTE) ======= */
-function renderDonut(divId, data){
-  const root = am5.Root.new(divId);
-  root.setThemes([am5themes_Animated.new(root)]);
-
-  root.numberFormatter.setAll({ numberFormat: "#,###" });
-
-  const chart = root.container.children.push(
-    am5percent.PieChart.new(root, {
-      // ✅ padding controlado para que no se vaya a la esquina
-      paddingTop: 10,
-      paddingBottom: 10,
-      paddingLeft: 10,
-      paddingRight: 10
-    })
-  );
-
-  const series = chart.series.push(
-    am5percent.PieSeries.new(root, {
-      valueField: "value",
-      categoryField: "category",
-      alignLabels: false,
-      tooltip: am5.Tooltip.new(root, {
-        labelText: "{category}: {value.formatNumber('#,###')}"
-      })
-    })
-  );
-
-  // ✅ centrado real
-  series.setAll({
-    centerX: am5.percent(50),
-    centerY: am5.percent(50),
-    radius: am5.percent(85),
-    innerRadius: am5.percent(60)
-  });
-
-  // ✅ evita que etiquetas/ticks empujen el donut (causa el “corte”)
-  series.labels.template.setAll({ forceHidden: true });
-  series.ticks.template.setAll({ forceHidden: true });
-
-  // (Opcional) si quieres ver legend bonito abajo, usa esto,
-  // pero NO uses verticalLayout en el chart (eso suele descentrar):
-  const legend = chart.children.push(
-    am5.Legend.new(root, {
-      centerX: am5.percent(50),
-      x: am5.percent(50),
-      layout: root.horizontalLayout,
-      marginTop: 8
-    })
-  );
-  legend.labels.template.setAll({ fontSize: 12 });
-  legend.valueLabels.template.setAll({ fontSize: 12 });
-
-  series.data.setAll(data);
-  legend.data.setAll(series.dataItems);
-
-  series.appear(900, 100);
-}
-
-(async function initCharts(){
-  const sede     = await fetchData("{{ url_for('users.api_chart_sede') }}?v={{ now_ts }}");
-  const contrato = await fetchData("{{ url_for('users.api_chart_contrato') }}?v={{ now_ts }}");
-  const permisos = await fetchData("{{ url_for('users.api_chart_permisos') }}?v={{ now_ts }}");
-  const vpn      = await fetchData("{{ url_for('users.api_chart_vpn') }}?v={{ now_ts }}");
-  const dep      = await fetchData("{{ url_for('users.api_chart_dependencia') }}?v={{ now_ts }}");
-  const sub      = await fetchData("{{ url_for('users.api_chart_subdependencia') }}?v={{ now_ts }}");
-
-  renderXYColumn("chartSede", sede);
-  renderDonut("chartContrato", contrato);
-  renderDonut("chartPermisos", permisos);
-  renderDonut("chartVPN", vpn);
-
-  renderXYBar("chartDep", dep);
-  renderXYBar("chartSub", sub);
-})();
-</script>
-
+  <script src="{{ url_for('static', filename='js/org-combos.js') }}?v={{ now_ts }}"></script>
+  <script src="{{ url_for('static', filename='js/modal.js') }}?v={{ now_ts }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ now_ts }}"></script>
 {% endblock %}

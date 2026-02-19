@@ -46,12 +46,21 @@ class NetworkUser:
     nombres: str = ""
     apellidos: str = ""
     dni: str = ""
+
+    correo: str = ""
+    ip_equipo: str = ""
+    host: str = ""
+
     tipo_contrato: str = ""
     contrato_inicio: str = ""
     contrato_fin: str = ""
     sede: str = ""
     dependencia: str = ""
     subdependencia: str = ""
+
+    equipo_personal: str = "NO"      # ✅ nuevo
+    antivirus: str = ""              # ✅ nuevo
+    antivirus_fin: str = ""          # ✅ nuevo
 
     acceso_nivel: str = "NORMAL"
     acceso_redes_sociales: str = "NO"
@@ -78,7 +87,6 @@ class UserService:
 
         self._load_network_users()
 
-        # Usuarios fijos del sistema
         self.app_users = {
             "admin": AppUser("admin", generate_password_hash("admin123"), "ADMIN"),
             "consulta": AppUser("consulta", generate_password_hash("consulta123"), "CONSULTA"),
@@ -100,6 +108,7 @@ class UserService:
         self._list = LinkedList()
 
         for r in self.store.read_all():
+            # ✅ IMPORTANTE: si faltan columnas, CSVStore ya migra schema.
             u = NetworkUser(**r)
 
             if not u.usuario_red:
@@ -115,28 +124,11 @@ class UserService:
     def bst_metrics(self):
         return {"comparisons": getattr(self._bst, "last_comparisons", 0)}
 
-    # ================= HELPERS =================
-    def _upsert_row(self, usuario_red: str, new_row: dict):
-        rows = self.store.read_all()
-        found = False
-
-        for row in rows:
-            if (row.get("usuario_red") or "").strip().lower() == usuario_red:
-                row.update(new_row)
-                found = True
-                break
-
-        if not found:
-            rows.append(new_row)
-
-        self.store.write_all(rows)
-        self._load_network_users()
-
     def _active_users(self):
         return [u for u in self._list.to_list() if u.status == "ACTIVE"]
 
     # ================= CRUD =================
-    def register_network_user(self, data: dict, actor="admin"):
+    def register_network_user(self, data: dict, actor="admin", ip="-"):
         usuario_red = (data.get("usuario_red") or "").strip().lower()
         if not usuario_red:
             raise ValueError("usuario_red es obligatorio.")
@@ -148,12 +140,21 @@ class UserService:
             "nombres": norm(data.get("nombres")),
             "apellidos": norm(data.get("apellidos")),
             "dni": norm(data.get("dni")),
+
+            "correo": norm(data.get("correo")),
+            "ip_equipo": norm(data.get("ip_equipo")),
+            "host": norm(data.get("host")),
+
             "tipo_contrato": norm(data.get("tipo_contrato")).upper(),
             "contrato_inicio": norm(data.get("contrato_inicio")),
             "contrato_fin": norm(data.get("contrato_fin")),
             "sede": norm(data.get("sede")),
             "dependencia": norm(data.get("dependencia")),
             "subdependencia": norm(data.get("subdependencia")),
+
+            "equipo_personal": (norm(data.get("equipo_personal")) or "NO").upper(),
+            "antivirus": norm(data.get("antivirus")),
+            "antivirus_fin": norm(data.get("antivirus_fin")),
 
             "acceso_nivel": (norm(data.get("acceso_nivel")) or "NORMAL").upper(),
             "acceso_redes_sociales": (norm(data.get("acceso_redes_sociales")) or "NO").upper(),
@@ -168,10 +169,22 @@ class UserService:
             "status": "ACTIVE",
         }
 
-        self._upsert_row(usuario_red, new_row)
+        # ✅ regla antivirus: solo si vpn=SI y equipo_personal=SI
+        vpn = (new_row.get("vpn_activo") or "NO").upper()
+        eqp = (new_row.get("equipo_personal") or "NO").upper()
+        if vpn != "SI" or eqp != "SI":
+            new_row["antivirus"] = ""
+            new_row["antivirus_fin"] = ""
+
+        # persistir en CSV
+        self.store.upsert_user(new_row, actor=actor, ip=ip)
+
+        # auditoría en memoria (si la usas en UI)
         self.audit.push(audit_event(f"Registrado/actualizado {usuario_red}", actor))
 
-    def deactivate_user(self, usuario_red, actor="admin"):
+        self._load_network_users()
+
+    def deactivate_user(self, usuario_red, actor="admin", ip="-"):
         usuario_red = (usuario_red or "").strip().lower()
         rows = self.store.read_all()
         ok = False
@@ -189,7 +202,7 @@ class UserService:
         self._load_network_users()
         self.audit.push(audit_event(f"Desactivado usuario {usuario_red}", actor))
 
-    def activate_user(self, usuario_red, actor="admin"):
+    def activate_user(self, usuario_red, actor="admin", ip="-"):
         usuario_red = (usuario_red or "").strip().lower()
         rows = self.store.read_all()
         ok = False
@@ -207,7 +220,7 @@ class UserService:
         self._load_network_users()
         self.audit.push(audit_event(f"Reactivado usuario {usuario_red}", actor))
 
-    def deactivate_special_permissions(self, usuario_red, actor="admin"):
+    def deactivate_special_permissions(self, usuario_red, actor="admin", ip="-"):
         usuario_red = (usuario_red or "").strip().lower()
         rows = self.store.read_all()
         ok = False
@@ -217,6 +230,9 @@ class UserService:
                 row["permisos_activos"] = "NO"
                 row["vpn_activo"] = "NO"
                 row["acceso_redes_sociales"] = "NO"
+                # al apagar permisos, antivirus no aplica
+                row["antivirus"] = ""
+                row["antivirus_fin"] = ""
                 ok = True
                 break
 
@@ -245,8 +261,8 @@ class UserService:
         vpn_activo=None,
         acceso_redes_sociales=None,
         acceso_nivel=None,
-        estado=None,               # "ACTIVE" | "INACTIVE" | ""
-        include_inactive=False,    # mezcla
+        estado=None,
+        include_inactive=False,
     ):
         results = []
 
@@ -255,22 +271,20 @@ class UserService:
         dependencia = (dependencia or "").strip()
         subdependencia = (subdependencia or "").strip()
 
-        permisos_activos = (permisos_activos or "").strip().upper()  # SI/NO
-        vpn_activo = (vpn_activo or "").strip().upper()              # SI/NO
-        acceso_redes_sociales = (acceso_redes_sociales or "").strip().upper()  # SI/NO
-        acceso_nivel = (acceso_nivel or "").strip().upper()          # NORMAL/ADMINISTRADOR
+        permisos_activos = (permisos_activos or "").strip().upper()
+        vpn_activo = (vpn_activo or "").strip().upper()
+        acceso_redes_sociales = (acceso_redes_sociales or "").strip().upper()
+        acceso_nivel = (acceso_nivel or "").strip().upper()
 
         estado = (estado or "").strip().upper()
         include_inactive = _as_bool(include_inactive)
 
         for u in self._list.to_list():
-            # estado explícito manda
             if estado == "ACTIVE" and u.status != "ACTIVE":
                 continue
             if estado == "INACTIVE" and u.status != "INACTIVE":
                 continue
 
-            # por defecto, solo activos (si no se pidió estado específico)
             if not estado and not include_inactive and u.status != "ACTIVE":
                 continue
 
@@ -319,6 +333,13 @@ class UserService:
                 leftv = _days_left(vfin)
                 if leftv is not None and leftv <= days:
                     alerts.append({"tipo": "VPN", "u": u, "dias": leftv, "vence": u.vpn_fin})
+
+            # ✅ Antivirus solo si vpn=SI y equipo_personal=SI
+            if (u.vpn_activo or "").upper() == "SI" and (u.equipo_personal or "").upper() == "SI":
+                afin = _parse_date(u.antivirus_fin)
+                lefta = _days_left(afin)
+                if lefta is not None and lefta <= days:
+                    alerts.append({"tipo": "ANTIVIRUS", "u": u, "dias": lefta, "vence": u.antivirus_fin})
 
         alerts.sort(key=lambda x: x["dias"])
         return alerts
@@ -379,3 +400,17 @@ class UserService:
             lvl = (u.acceso_nivel or "NORMAL").strip().upper() or "NORMAL"
             counts[lvl] = counts.get(lvl, 0) + 1
         return counts
+
+    # ================= EXPORT CSV =================
+    def export_users_csv(self, actor="admin", ip="-"):
+        rows = self.store.read_all()
+        return self.store.export_csv("usuarios_accessuti", rows=rows, actor=actor, ip=ip)
+    
+    def last_audit_events(self, n=10):
+        # Stack -> list (si tu Stack tiene to_list úsalo)
+        if hasattr(self.audit, "to_list"):
+            items = self.audit.to_list()
+        else:
+            # fallback si tu Stack guarda internamente en .items o ._items
+            items = getattr(self.audit, "items", None) or getattr(self.audit, "_items", []) or []
+        return list(reversed(items))[:n]  # últimos primero
