@@ -107,51 +107,69 @@
     chart.appear(900, 100);
   }
 
-  function renderDonut(divId, data) {
-    const root = am5.Root.new(divId);
-    root.setThemes([am5themes_Animated.new(root)]);
-    root.numberFormatter.setAll({ numberFormat: "#,###" });
+function renderDonut(divId, data) {
+  const root = am5.Root.new(divId);
+  root.setThemes([am5themes_Animated.new(root)]);
+  root.numberFormatter.setAll({ numberFormat: "#,###" });
 
-    const chart = root.container.children.push(
-      am5percent.PieChart.new(root, { paddingTop: 10, paddingBottom: 10, paddingLeft: 10, paddingRight: 10 })
-    );
+  // Chart (layout vertical para leyenda arriba + gráfico abajo)
+  const chart = root.container.children.push(
+    am5percent.PieChart.new(root, {
+      layout: root.verticalLayout,
+      paddingTop: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      paddingRight: 0
+    })
+  );
 
-    const series = chart.series.push(
-      am5percent.PieSeries.new(root, {
-        valueField: "value",
-        categoryField: "category",
-        alignLabels: false,
-        tooltip: am5.Tooltip.new(root, { labelText: "{category}: {value.formatNumber('#,###')}" })
-      })
-    );
-
-    series.setAll({
+  // Legend (arriba)
+  const legend = chart.children.unshift(
+    am5.Legend.new(root, {
       centerX: am5.percent(50),
-      centerY: am5.percent(50),
-      radius: am5.percent(85),
-      innerRadius: am5.percent(60)
-    });
+      x: am5.percent(50),
+      width: am5.percent(100),
+      marginBottom: 6,
+      layout: root.horizontalLayout
+    })
+  );
 
-    series.labels.template.setAll({ forceHidden: true });
-    series.ticks.template.setAll({ forceHidden: true });
+  legend.labels.template.setAll({
+    fontSize: 12,
+    oversizedBehavior: "wrap",
+    maxWidth: 140
+  });
+  legend.valueLabels.template.setAll({ fontSize: 12 });
 
-    const legend = chart.children.push(
-      am5.Legend.new(root, {
-        centerX: am5.percent(50),
-        x: am5.percent(50),
-        layout: root.horizontalLayout,
-        marginTop: 8
+  // Series
+  const series = chart.series.push(
+    am5percent.PieSeries.new(root, {
+      valueField: "value",
+      categoryField: "category",
+      alignLabels: false,
+      tooltip: am5.Tooltip.new(root, {
+        labelText: "{category}: {value.formatNumber('#,###')}"
       })
-    );
+    })
+  );
 
-    legend.labels.template.setAll({ fontSize: 12 });
-    legend.valueLabels.template.setAll({ fontSize: 12 });
+  // Encaje perfecto dentro del card
+  series.setAll({
+    radius: am5.percent(88),
+    innerRadius: am5.percent(62)
+  });
 
-    series.data.setAll(data);
-    legend.data.setAll(series.dataItems);
+  // Dashboard limpio (sin labels ni ticks)
+  series.labels.template.setAll({ forceHidden: true });
+  series.ticks.template.setAll({ forceHidden: true });
 
-    series.appear(900, 100);
-  }
+  // Data
+  series.data.setAll(data || []);
+  legend.data.setAll(series.dataItems);
+
+  series.appear(900, 100);
+  chart.appear(900, 100);
+}
 
   try {
     const sede     = await fetchData(ep.sede);

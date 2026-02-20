@@ -48,7 +48,7 @@ body{
 a{ color: inherit; text-decoration:none; }
 button, input, select, textarea{ font: inherit; }
 
-/* Scroll elegante */
+/* Scroll */
 ::-webkit-scrollbar{ width:10px; }
 ::-webkit-scrollbar-thumb{
   background:#cbd5e1;
@@ -463,11 +463,9 @@ form{ margin:0; }
   grid-column: 1 / -1;
 }
 
-
-/* wrapper del gráfico */
 .chartBox{
   padding: 12px;
-  background: linear-gradient(180deg, rgba(248,250,252,.88), rgba(255,255,255,.98));
+  overflow: hidden;
 }
 
 /* contenedor root de amCharts */
@@ -481,20 +479,18 @@ form{ margin:0; }
   padding: 0;
 }
 
-.chart{ height: 320px; }
-.chartTall{ height: 420px; }
+.chart{ height: 300px; }      /* donut */
+.chartTall{ height: 420px; }  /* barras largas */
 
-/* amCharts: el div interno ocupa todo */
+/* el div interno SIEMPRE 100% */
 .chart > div,
 .chartTall > div{
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
-  height: 100% !important;
+  height: 100% !important;   /* CLAVE */
   margin: 0 !important;
 }
-
-
 
 /* hace discreto el link/logo */
 .chart a, .chartTall a{
