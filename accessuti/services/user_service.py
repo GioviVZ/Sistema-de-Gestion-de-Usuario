@@ -6,11 +6,6 @@ from ..ds.bst import BST
 from ..ds.linked_list import LinkedList
 from ..ds.stack import Stack, audit_event
 
-
-# =========================
-# UTILIDADES
-# =========================
-
 def _parse_date(s: str):
     s = (s or "").strip()
     if not s:
@@ -64,10 +59,6 @@ class NetworkUser:
     status: str = "ACTIVE"
 
 
-# =========================
-# SERVICIO PRINCIPAL
-# =========================
-
 class UserService:
 
     def __init__(self, store):
@@ -78,13 +69,12 @@ class UserService:
 
         self._load_network_users()
 
-        # Usuarios fijos del sistema
+    
         self.app_users = {
             "admin": AppUser("admin", generate_password_hash("admin123"), "ADMIN"),
             "consulta": AppUser("consulta", generate_password_hash("consulta123"), "CONSULTA"),
         }
 
-    # ================= LOGIN =================
 
     def validate_login(self, username, password):
         username = (username or "").strip().lower()
@@ -113,12 +103,12 @@ class UserService:
             self._bst.insert(key, u)
             self._list.append(u)
 
-    # ================= MÉTRICAS =================
+   
 
     def bst_metrics(self):
         return {"comparisons": getattr(self._bst, "last_comparisons", 0)}
 
-    # ================= HELPERS =================
+  
 
     def _upsert_row(self, usuario_red: str, new_row: dict):
         rows = self.store.read_all()
@@ -220,7 +210,7 @@ class UserService:
         self._load_network_users()
         self.audit.push(audit_event(f"Permisos especiales apagados {usuario_red}", actor))
 
-    # ================= QUERIES =================
+
 
     def get_network_user(self, usuario_red):
         return self._bst.search((usuario_red or "").strip().lower())
@@ -290,7 +280,7 @@ class UserService:
         alerts.sort(key=lambda x: x["dias"])  # menor días primero
         return alerts
 
-    # ================= DASHBOARD CHARTS =================
+
 
     def count_by_sede(self):
         counts = {}

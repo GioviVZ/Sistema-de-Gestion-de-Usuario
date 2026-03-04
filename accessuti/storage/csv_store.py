@@ -46,9 +46,9 @@ class CSVStore:
             r = csv.DictReader(f)
             out = []
             for row in r:
-                # compatibilidad: rellenar faltantes
+                
                 fixed = {k: (row.get(k, "") or "") for k in FIELDS}
-                # si venía "username" viejo, úsalo como usuario_red si falta
+               
                 if not fixed["usuario_red"] and row.get("username"):
                     fixed["usuario_red"] = (row.get("username") or "").strip().lower()
                 out.append(fixed)
